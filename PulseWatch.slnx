@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PulseWatch.Api/PulseWatch.Api.csproj" />
+    <Project Path="src/PulseWatch.Core/PulseWatch.Core.csproj" />
+    <Project Path="src/PulseWatch.Infrastructure/PulseWatch.Infrastructure.csproj" />
+  </Folder>
+</Solution>
