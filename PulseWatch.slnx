@@ -4,4 +4,8 @@
     <Project Path="src/PulseWatch.Core/PulseWatch.Core.csproj" />
     <Project Path="src/PulseWatch.Infrastructure/PulseWatch.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PulseWatch.Tests.Integration/PulseWatch.Tests.Integration.csproj" />
+    <Project Path="tests/PulseWatch.Tests.Unit/PulseWatch.Tests.Unit.csproj" />
+  </Folder>
 </Solution>
