@@ -10,7 +10,7 @@ internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outb
     {
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Type).HasMaxLength(100).IsRequired();
-        builder.Property(x => x.Payload).HasColumnType("jsonb");
+        builder.Property(x => x.Payload).HasColumnType("jsonb").IsRequired();
         builder.HasIndex(x => x.ProcessedAt);
     }
 }

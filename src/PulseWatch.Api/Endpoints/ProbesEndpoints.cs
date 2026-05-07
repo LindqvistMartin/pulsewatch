@@ -42,16 +42,19 @@ public static class ProbesEndpoints
 
     static async Task<IResult> Delete(Guid projectId, Guid id, IProbeRepository repo, CancellationToken ct)
     {
-        await repo.DeleteAsync(id, ct);
+        await repo.DeleteAsync(projectId, id, ct);
         return Results.NoContent();
     }
 
-    static async Task<IResult> GetChecks(Guid projectId, Guid id, IHealthCheckRepository repo,
-        DateTime? from, DateTime? to, CancellationToken ct)
+    static async Task<IResult> GetChecks(Guid projectId, Guid id, IProbeRepository probeRepo,
+        IHealthCheckRepository checksRepo, DateTime? from, DateTime? to, CancellationToken ct)
     {
+        var probe = await probeRepo.GetByIdAsync(id, ct);
+        if (probe is null || probe.ProjectId != projectId) return Results.NotFound();
+
         var start = from ?? DateTime.UtcNow.AddHours(-24);
         var end = to ?? DateTime.UtcNow;
-        var checks = await repo.GetByProbeAsync(id, start, end, ct);
+        var checks = await checksRepo.GetByProbeAsync(id, start, end, ct);
         return Results.Ok(checks.Select(c => new HealthCheckResponse(
             c.Id, c.StatusCode, c.ResponseTimeMs, c.IsSuccess, c.FailureReason, c.CheckedAt)));
     }

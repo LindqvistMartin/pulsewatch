@@ -5,6 +5,7 @@ using PulseWatch.Core.Abstractions;
 using PulseWatch.Core.Probes;
 using PulseWatch.Infrastructure.Persistence;
 using PulseWatch.Infrastructure.Persistence.Repositories;
+
 using PulseWatch.Infrastructure.Probes;
 
 namespace PulseWatch.Infrastructure;
@@ -15,6 +16,8 @@ public static class ServiceExtensions
     {
         services.AddDbContext<PulseDbContext>(o => o.UseNpgsql(connectionString));
 
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IProbeRepository, ProbeRepository>();
         services.AddScoped<IHealthCheckRepository, HealthCheckRepository>();
 

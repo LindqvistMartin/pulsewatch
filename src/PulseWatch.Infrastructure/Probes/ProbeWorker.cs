@@ -4,6 +4,7 @@ using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using PulseWatch.Core.Abstractions;
 using PulseWatch.Core.Entities;
 using PulseWatch.Core.Probes;
 using PulseWatch.Infrastructure.Persistence;
@@ -45,7 +46,7 @@ internal sealed class ProbeWorker(
             statusCode = (int)response.StatusCode;
             isSuccess = response.IsSuccessStatusCode;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             sw.Stop();
             failureReason = ex.Message;
@@ -56,21 +57,24 @@ internal sealed class ProbeWorker(
         {
             using var scope = scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+            var probeRepo = scope.ServiceProvider.GetRequiredService<IProbeRepository>();
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             var check = new HealthCheck(job.ProbeId, statusCode, sw.ElapsedMilliseconds, isSuccess, failureReason);
             db.HealthChecks.Add(check);
             db.OutboxMessages.Add(new OutboxMessage(
                 "HealthCheckRecorded",
-                JsonDocument.Parse(JsonSerializer.Serialize(new
+                JsonSerializer.Serialize(new
                 {
                     check.ProbeId,
                     check.IsSuccess,
                     check.ResponseTimeMs,
                     check.CheckedAt
-                }))));
+                })));
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+
+            await probeRepo.MarkCheckedAsync(job.ProbeId, ct);
 
             logger.LogInformation("Probe {ProbeId} {Result} in {Ms}ms", job.ProbeId, isSuccess ? "OK" : "FAIL", sw.ElapsedMilliseconds);
         }

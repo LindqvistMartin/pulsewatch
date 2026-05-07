@@ -13,9 +13,4 @@ internal sealed class HealthCheckRepository(PulseDbContext db) : IHealthCheckRep
             .Take(500)
             .ToListAsync(ct);
 
-    public async Task AddAsync(HealthCheck check, CancellationToken ct = default)
-    {
-        db.HealthChecks.Add(check);
-        await db.SaveChangesAsync(ct);
-    }
 }

@@ -11,6 +11,7 @@ public sealed class Probe
     public int TimeoutSeconds { get; private set; } = 10;
     public bool IsActive { get; private set; } = true;
     public DateTime CreatedAt { get; private set; }
+    public DateTime? LastCheckedAt { get; private set; }
 
     public Project Project { get; private set; } = default!;
     public ICollection<ProbeAssertion> Assertions { get; private set; } = [];
@@ -30,4 +31,6 @@ public sealed class Probe
         IntervalSeconds = intervalSeconds;
         CreatedAt = DateTime.UtcNow;
     }
+
+    public void RecordChecked() => LastCheckedAt = DateTime.UtcNow;
 }

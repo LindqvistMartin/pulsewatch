@@ -28,9 +28,15 @@ internal sealed class ProbeScheduler(
             using var scope = scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IProbeRepository>();
             var probes = await repo.GetActiveAsync(ct);
+            var now = DateTime.UtcNow;
 
             foreach (var probe in probes)
             {
+                var due = probe.LastCheckedAt is null
+                    || (now - probe.LastCheckedAt.Value).TotalSeconds >= probe.IntervalSeconds;
+
+                if (!due) continue;
+
                 var job = new ProbeJob(
                     probe.Id,
                     probe.Url,
