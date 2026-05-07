@@ -1,0 +1,61 @@
+using PulseWatch.Api.Contracts.Requests;
+using PulseWatch.Api.Contracts.Responses;
+using PulseWatch.Core.Abstractions;
+using PulseWatch.Core.Entities;
+
+namespace PulseWatch.Api.Endpoints;
+
+public static class ProbesEndpoints
+{
+    public static IEndpointRouteBuilder MapProbesEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/v1/projects/{projectId:guid}/probes").WithTags("Probes");
+
+        group.MapGet("/", GetAll);
+        group.MapPost("/", Create);
+        group.MapGet("/{id:guid}", GetById);
+        group.MapDelete("/{id:guid}", Delete);
+        group.MapGet("/{id:guid}/checks", GetChecks);
+
+        return app;
+    }
+
+    static async Task<IResult> GetAll(Guid projectId, IProbeRepository repo, CancellationToken ct)
+    {
+        var probes = await repo.GetByProjectAsync(projectId, ct);
+        return Results.Ok(probes.Select(ToResponse));
+    }
+
+    static async Task<IResult> Create(Guid projectId, CreateProbeRequest req, IProbeRepository repo, CancellationToken ct)
+    {
+        var probe = new Probe(projectId, req.Name, req.Url, req.IntervalSeconds);
+        await repo.AddAsync(probe, ct);
+        return Results.Created($"/api/v1/projects/{projectId}/probes/{probe.Id}", ToResponse(probe));
+    }
+
+    static async Task<IResult> GetById(Guid projectId, Guid id, IProbeRepository repo, CancellationToken ct)
+    {
+        var probe = await repo.GetByIdAsync(id, ct);
+        if (probe is null || probe.ProjectId != projectId) return Results.NotFound();
+        return Results.Ok(ToResponse(probe));
+    }
+
+    static async Task<IResult> Delete(Guid projectId, Guid id, IProbeRepository repo, CancellationToken ct)
+    {
+        await repo.DeleteAsync(id, ct);
+        return Results.NoContent();
+    }
+
+    static async Task<IResult> GetChecks(Guid projectId, Guid id, IHealthCheckRepository repo,
+        DateTime? from, DateTime? to, CancellationToken ct)
+    {
+        var start = from ?? DateTime.UtcNow.AddHours(-24);
+        var end = to ?? DateTime.UtcNow;
+        var checks = await repo.GetByProbeAsync(id, start, end, ct);
+        return Results.Ok(checks.Select(c => new HealthCheckResponse(
+            c.Id, c.StatusCode, c.ResponseTimeMs, c.IsSuccess, c.FailureReason, c.CheckedAt)));
+    }
+
+    static ProbeResponse ToResponse(Probe p) =>
+        new(p.Id, p.ProjectId, p.Name, p.Url, p.Method, p.IntervalSeconds, p.IsActive, p.CreatedAt);
+}
