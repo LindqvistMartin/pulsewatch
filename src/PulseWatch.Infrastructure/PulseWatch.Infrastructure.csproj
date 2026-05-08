@@ -21,4 +21,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="PulseWatch.Tests.Integration" />
+    <InternalsVisibleTo Include="PulseWatch.Tests.Unit" />
+  </ItemGroup>
+
 </Project>

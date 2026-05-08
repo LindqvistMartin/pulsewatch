@@ -56,6 +56,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 .ToList();
             foreach (var d in bgServices) services.Remove(d);
 
+            // Disable SLO background services
+            var bgSloServices = services
+                .Where(d => d.ImplementationType?.FullName?.StartsWith("PulseWatch.Infrastructure.Slo") == true)
+                .ToList();
+            foreach (var d in bgSloServices) services.Remove(d);
+
             // Also disable OutboxRelay (lives in Api, not caught by the Infrastructure.Probes filter above).
             // OutboxRelay is internal, so we match by assembly + short type name instead of typeof().
             var apiAssembly = typeof(Program).Assembly;
@@ -70,6 +76,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+        await db.SloMeasurements.ExecuteDeleteAsync();
+        await db.SloDefinitions.ExecuteDeleteAsync();
+        await db.IncidentUpdates.ExecuteDeleteAsync();
+        await db.Incidents.ExecuteDeleteAsync();
         await db.OutboxMessages.ExecuteDeleteAsync();
         await db.HealthChecks.ExecuteDeleteAsync();
         await db.ProbeAssertions.ExecuteDeleteAsync();

@@ -35,8 +35,7 @@ public static class ServiceExtensions
             services.AddHostedService<ProbeWorker>();
 
         services.AddHostedService<RollupRefresher>();
-        services.AddSingleton<SloCalculator>();
-        services.AddHostedService(sp => sp.GetRequiredService<SloCalculator>());
+        services.AddHostedService<SloCalculator>();
 
         services.AddHttpClient("probe", c =>
         {
