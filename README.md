@@ -5,19 +5,26 @@ Self-hosted reliability dashboard. Probes, SLOs, public status pages — without
 ## Features
 
 - HTTP probes with configurable assertions (status code, latency threshold, body regex, JSON path)
-- SLO tracking with error budget burn rate *(Evening 4)*
-- Public status pages with incident timelines *(Evening 6)*
+- SLO tracking: availability + error budget burn rate over configurable windows
+- Incident autodetection when availability drops below SLO target
 - Real-time dashboard updates over SignalR — no polling
 - YAML config-as-code + REST API + OpenAPI (Scalar UI at `/scalar`)
 - Multi-tenancy: Organizations → Projects → Probes
 - Self-instrumented: OpenTelemetry traces + `/metrics` Prometheus endpoint
+
+## Roadmap
+
+- Public status pages with incident timelines
+- React 18 frontend (TanStack Query, shadcn/ui, recharts)
+- Docker + Render deploy
+- Slack/Discord webhook on SLO breach
 
 ## Architecture
 
 ```
 ProbeScheduler (5 s tick)
     │
-    │  Channel<ProbeJob> — bounded 1000, DropOldest
+    │  Channel<ProbeJob> — bounded 1000, DropWrite
     ▼
 ProbeWorker ×4 (concurrent)
     │  HTTP probe + assertion evaluation
@@ -25,9 +32,15 @@ ProbeWorker ×4 (concurrent)
     ├─ HealthCheck row ──┐
     └─ OutboxMessage row─┤  single transaction
                          │
-                    OutboxRelay (2 s poll, FOR UPDATE SKIP LOCKED)
+                    OutboxRelay (200 ms poll, FOR UPDATE SKIP LOCKED)
                          │
                     SignalR hub → browser (live dashboard)
+
+RollupRefresher (60 s)
+    └─ REFRESH MATERIALIZED VIEW CONCURRENTLY (health_check_1m/1h/1d)
+
+SloCalculator (60 s)
+    └─ reads health_check_1h/1d → writes SloMeasurement + auto-opens/closes Incidents
 ```
 
 **Assertion engine:** `ProbeWorker` passes `(statusCode, responseTimeMs, body)` to `AssertionEvaluatorFactory`, which dispatches to `StatusCodeEvaluator`, `LatencyEvaluator`, `BodyRegexEvaluator`, or `JsonPathEvaluator`. All assertions must pass for `IsSuccess = true`.
@@ -35,12 +48,13 @@ ProbeWorker ×4 (concurrent)
 Architecture Decision Records:
 - [ADR 001 — Transactional Outbox](docs/adr/001-outbox-pattern.md)
 - [ADR 002 — Channel Pipeline](docs/adr/002-channel-pipeline.md)
+- [ADR 003 — PostgreSQL Rollups vs TimescaleDB](docs/adr/003-postgres-rollups-vs-timescale.md)
 
 ## Stack
 
 **Backend** — .NET 10, ASP.NET Core Minimal API, EF Core 9, SignalR, PostgreSQL, Serilog  
-**Frontend** — React 18, TypeScript, Vite, TanStack Query, shadcn/ui, Tailwind, recharts *(Evening 5)*  
-**Deploy** — Docker, Render, Neon Postgres *(Evening 6)*
+**Frontend** — React 18, TypeScript, Vite, TanStack Query, shadcn/ui, Tailwind, recharts *(planned)*  
+**Deploy** — Docker, Render, Neon Postgres *(planned)*
 
 ## Quick start
 
@@ -72,7 +86,7 @@ PROJ=$(curl -s -X POST localhost:5000/api/v1/organizations/$ORG/projects \
   -d '{"name":"My Project","slug":"my-project"}' | jq -r .id)
 
 # 2. Add a probe with assertions
-curl -X POST localhost:5000/api/v1/projects/$PROJ/probes \
+PROBE=$(curl -s -X POST localhost:5000/api/v1/projects/$PROJ/probes \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "API Health",
@@ -84,7 +98,33 @@ curl -X POST localhost:5000/api/v1/projects/$PROJ/probes \
       { "type": "JsonPath",   "operator": "Equals", "expectedValue": "ok",
         "jsonPathExpression": "$.status" }
     ]
-  }'
+  }' | jq -r .id)
+```
+
+## SLO Tracking
+
+Define an SLO for any probe. PulseWatch computes availability, error budget, and burn rate
+automatically every 60 seconds using PostgreSQL materialized rollup views.
+
+```bash
+# Define an SLO: 99.9% availability over a 30-day window
+curl -X POST localhost:5000/api/v1/projects/$PROJ/probes/$PROBE/slos \
+  -H 'Content-Type: application/json' \
+  -d '{"targetAvailabilityPct": 99.9, "windowDays": 30}'
+
+# Read the latest measurement snapshot
+curl localhost:5000/api/v1/projects/$PROJ/probes/$PROBE/slos
+```
+
+Response includes `latestMeasurement` with:
+- `availabilityPct` — rolling availability over the window
+- `burnRate` — ratio of actual to allowed error consumption (>1 = burning too fast)
+- `errorBudgetConsumedSeconds` / `errorBudgetTotalSeconds`
+- `projectedExhaustionAt` — when the budget runs out at current rate
+
+```bash
+# Incidents (auto-opened when availability drops below target)
+curl localhost:5000/api/v1/projects/$PROJ/probes/$PROBE/incidents
 ```
 
 ## Run tests
