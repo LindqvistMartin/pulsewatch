@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using PulseWatch.Core.Abstractions;
+using PulseWatch.Core.Assertions;
 using PulseWatch.Core.Entities;
 using PulseWatch.Core.Probes;
 using PulseWatch.Infrastructure.Persistence;
@@ -18,6 +19,7 @@ internal sealed class ProbeWorker(
     ILogger<ProbeWorker> logger) : BackgroundService
 {
     private static readonly ActivitySource Source = new("PulseWatch.Probes");
+    private static readonly AssertionEvaluatorFactory _factory = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -41,16 +43,36 @@ internal sealed class ProbeWorker(
         try
         {
             using var request = new HttpRequestMessage(new HttpMethod(job.Method), job.Url);
-            using var response = await client.SendAsync(request, ct);
+            var response = await client.SendAsync(request, ct); // no using — dispose after reading body
             sw.Stop();
             statusCode = (int)response.StatusCode;
-            isSuccess = response.IsSuccessStatusCode;
+
+            // Read body only when needed for assertions (before disposing response)
+            string? body = null;
+            if (job.Assertions.Any(a => a.Type is AssertionType.BodyRegex or AssertionType.JsonPath))
+                body = await response.Content.ReadAsStringAsync(ct);
+
+            response.Dispose();
+
+            if (job.Assertions.Count > 0)
+            {
+                var ctx = new AssertionContext(statusCode, sw.ElapsedMilliseconds, body);
+                var results = job.Assertions.Select(a => _factory.Get(a.Type).Evaluate(a, ctx)).ToList();
+                isSuccess = results.All(r => r.Passed);
+                if (!isSuccess)
+                    failureReason = string.Join("; ", results.Where(r => !r.Passed).Select(r => r.FailureMessage));
+            }
+            else
+            {
+                isSuccess = statusCode is >= 200 and < 300;
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             sw.Stop();
             failureReason = ex.Message;
-            logger.LogWarning("Probe {ProbeId} failed after {Ms}ms: {Reason}", job.ProbeId, sw.ElapsedMilliseconds, ex.Message);
+            logger.LogWarning("Probe {ProbeId} failed after {Ms}ms: {Reason}",
+                job.ProbeId, sw.ElapsedMilliseconds, ex.Message);
         }
 
         try
@@ -67,16 +89,20 @@ internal sealed class ProbeWorker(
                 JsonSerializer.Serialize(new
                 {
                     check.ProbeId,
+                    ProjectId = job.ProjectId,
                     check.IsSuccess,
+                    check.StatusCode,
                     check.ResponseTimeMs,
-                    check.CheckedAt
+                    check.CheckedAt,
+                    FailureReason = check.FailureReason
                 })));
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
             await probeRepo.MarkCheckedAsync(job.ProbeId, ct);
 
-            logger.LogInformation("Probe {ProbeId} {Result} in {Ms}ms", job.ProbeId, isSuccess ? "OK" : "FAIL", sw.ElapsedMilliseconds);
+            logger.LogInformation("Probe {ProbeId} {Result} in {Ms}ms",
+                job.ProbeId, isSuccess ? "OK" : "FAIL", sw.ElapsedMilliseconds);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
