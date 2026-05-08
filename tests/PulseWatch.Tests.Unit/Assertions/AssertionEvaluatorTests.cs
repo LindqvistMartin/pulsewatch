@@ -147,6 +147,32 @@ public class AssertionEvaluatorTests
         result.FailureMessage.Should().Contain("not supported");
     }
 
+    [Fact]
+    public void BodyRegex_UnsupportedOperator_ReturnsFailWithMessage()
+    {
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.BodyRegex, AssertionOperator.LessThan, "ok");
+        var result = new BodyRegexEvaluator().Evaluate(assertion, new AssertionContext(200, 50, "ok"));
+        result.Passed.Should().BeFalse();
+        result.FailureMessage.Should().Contain("not supported");
+    }
+
+    // ── Entity invariants ────────────────────────────────────────────────
+    [Fact]
+    public void ProbeAssertion_JsonPath_NullExpression_Throws()
+    {
+        var act = () => new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.Equals, "ok", jsonPath: null);
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void ProbeAssertion_JsonPath_WhitespaceExpression_Throws()
+    {
+        var act = () => new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.Equals, "ok", jsonPath: "   ");
+        act.Should().Throw<ArgumentException>();
+    }
+
     // ── Factory routing ──────────────────────────────────────────────────
     [Theory]
     [InlineData(AssertionType.StatusCode, typeof(StatusCodeEvaluator))]
