@@ -104,4 +104,62 @@ public class SloApiTests(ApiFactory factory) : IAsyncLifetime
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task PostSlo_NonExistentProbe_Returns404()
+    {
+        var (_, projectId) = await CreateHierarchyAsync();
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/projects/{projectId}/probes/{Guid.NewGuid()}/slos",
+            new CreateSloRequest(99.9, 30));
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PostSlo_TargetAbove100_Returns400()
+    {
+        var (probeId, projectId) = await CreateHierarchyAsync();
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/projects/{projectId}/probes/{probeId}/slos",
+            new CreateSloRequest(101.0, 30));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task GetIncidents_WhenNone_ReturnsEmptyList()
+    {
+        var (probeId, projectId) = await CreateHierarchyAsync();
+
+        var response = await _client.GetAsync(
+            $"/api/v1/projects/{projectId}/probes/{probeId}/incidents");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var incidents = await response.Content.ReadFromJsonAsync<List<IncidentResponse>>();
+        incidents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetIncidents_IncludesNestedUpdates()
+    {
+        var (probeId, projectId) = await CreateHierarchyAsync();
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+        var incident = new Incident(probeId, "Test breach", autoDetected: true);
+        db.Incidents.Add(incident);
+        db.IncidentUpdates.Add(
+            new IncidentUpdate(incident.Id, IncidentStatus.Investigating, "Looking into it"));
+        await db.SaveChangesAsync();
+
+        var response = await _client.GetAsync(
+            $"/api/v1/projects/{projectId}/probes/{probeId}/incidents");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var incidents = await response.Content.ReadFromJsonAsync<List<IncidentResponse>>();
+        incidents.Should().HaveCount(1);
+        incidents![0].Updates.Should().HaveCount(1);
+        incidents[0].Updates[0].Status.Should().Be("Investigating");
+    }
 }
