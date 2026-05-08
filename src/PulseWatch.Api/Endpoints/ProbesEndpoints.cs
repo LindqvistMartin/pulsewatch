@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using PulseWatch.Api.Contracts.Requests;
 using PulseWatch.Api.Contracts.Responses;
 using PulseWatch.Core.Abstractions;
@@ -30,6 +31,9 @@ public static class ProbesEndpoints
     static async Task<IResult> Create(Guid projectId, CreateProbeRequest req,
         PulseDbContext db, CancellationToken ct)
     {
+        if (!await db.Projects.AnyAsync(p => p.Id == projectId, ct))
+            return Results.NotFound();
+
         var probe = new Probe(projectId, req.Name, req.Url, req.IntervalSeconds);
         db.Probes.Add(probe);
 
@@ -38,9 +42,11 @@ public static class ProbesEndpoints
             foreach (var a in req.Assertions)
             {
                 if (!Enum.TryParse<AssertionType>(a.Type, ignoreCase: true, out var type))
-                    return Results.BadRequest($"Unknown assertion type: {a.Type}");
+                    return Results.Problem(detail: $"Unknown assertion type: {a.Type}", statusCode: 400);
                 if (!Enum.TryParse<AssertionOperator>(a.Operator, ignoreCase: true, out var op))
-                    return Results.BadRequest($"Unknown assertion operator: {a.Operator}");
+                    return Results.Problem(detail: $"Unknown assertion operator: {a.Operator}", statusCode: 400);
+                if (type == AssertionType.JsonPath && string.IsNullOrWhiteSpace(a.JsonPathExpression))
+                    return Results.Problem(detail: "JsonPath assertions require a jsonPathExpression", statusCode: 400);
                 db.ProbeAssertions.Add(new ProbeAssertion(probe.Id, type, op, a.ExpectedValue, a.JsonPathExpression));
             }
         }

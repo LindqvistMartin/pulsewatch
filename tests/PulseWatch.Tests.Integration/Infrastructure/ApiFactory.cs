@@ -56,9 +56,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 .ToList();
             foreach (var d in bgServices) services.Remove(d);
 
-            // Also disable OutboxRelay (lives in Api, not caught by the filter above)
+            // Also disable OutboxRelay (lives in Api, not caught by the Infrastructure.Probes filter above).
+            // OutboxRelay is internal, so we match by assembly + short type name instead of typeof().
+            var apiAssembly = typeof(Program).Assembly;
             var outboxRelay = services.SingleOrDefault(d =>
-                d.ImplementationType?.FullName == "PulseWatch.Api.BackgroundServices.OutboxRelay");
+                d.ImplementationType?.Assembly == apiAssembly &&
+                d.ImplementationType.Name == "OutboxRelay");
             if (outboxRelay is not null) services.Remove(outboxRelay);
         });
     }
