@@ -2,6 +2,7 @@ using PulseWatch.Api.Contracts.Requests;
 using PulseWatch.Api.Contracts.Responses;
 using PulseWatch.Core.Abstractions;
 using PulseWatch.Core.Entities;
+using PulseWatch.Infrastructure.Persistence;
 
 namespace PulseWatch.Api.Endpoints;
 
@@ -26,10 +27,25 @@ public static class ProbesEndpoints
         return Results.Ok(probes.Select(ToResponse));
     }
 
-    static async Task<IResult> Create(Guid projectId, CreateProbeRequest req, IProbeRepository repo, CancellationToken ct)
+    static async Task<IResult> Create(Guid projectId, CreateProbeRequest req,
+        PulseDbContext db, CancellationToken ct)
     {
         var probe = new Probe(projectId, req.Name, req.Url, req.IntervalSeconds);
-        await repo.AddAsync(probe, ct);
+        db.Probes.Add(probe);
+
+        if (req.Assertions is { Count: > 0 })
+        {
+            foreach (var a in req.Assertions)
+            {
+                if (!Enum.TryParse<AssertionType>(a.Type, ignoreCase: true, out var type))
+                    return Results.BadRequest($"Unknown assertion type: {a.Type}");
+                if (!Enum.TryParse<AssertionOperator>(a.Operator, ignoreCase: true, out var op))
+                    return Results.BadRequest($"Unknown assertion operator: {a.Operator}");
+                db.ProbeAssertions.Add(new ProbeAssertion(probe.Id, type, op, a.ExpectedValue, a.JsonPathExpression));
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
         return Results.Created($"/api/v1/projects/{projectId}/probes/{probe.Id}", ToResponse(probe));
     }
 
