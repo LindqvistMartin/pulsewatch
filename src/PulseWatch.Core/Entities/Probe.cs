@@ -16,6 +16,8 @@ public sealed class Probe
     public Project Project { get; private set; } = default!;
     public ICollection<ProbeAssertion> Assertions { get; private set; } = [];
     public ICollection<HealthCheck> HealthChecks { get; private set; } = [];
+    public ICollection<SloDefinition> SloDefinitions { get; private set; } = [];
+    public ICollection<Incident> Incidents { get; private set; } = [];
 
     private Probe() { }
 
