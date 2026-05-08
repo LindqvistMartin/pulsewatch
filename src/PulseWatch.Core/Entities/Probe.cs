@@ -35,4 +35,6 @@ public sealed class Probe
     }
 
     public void RecordChecked() => LastCheckedAt = DateTime.UtcNow;
+
+    public void Deactivate() => IsActive = false;
 }

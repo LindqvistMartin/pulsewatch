@@ -80,6 +80,169 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
         check.FailureReason.Should().Contain("StatusCode");
     }
 
+    [Fact(Timeout = 30_000)]
+    public async Task OutboxRelay_AfterProbeExecution_MarksMessagesProcessed()
+    {
+        factory.WireMock
+            .Given(Request.Create().WithPath("/outbox-relay").UsingGet())
+            .RespondWith(Response.Create().WithStatusCode(200));
+
+        var probeUrl = $"{factory.WireMock.Urls[0]}/outbox-relay";
+        var org = await PostAndRead<OrganizationResponse>("/api/v1/organizations",
+            new CreateOrganizationRequest("OutboxOrg", "outbox-org"));
+        var project = await PostAndRead<ProjectResponse>(
+            $"/api/v1/organizations/{org.Id}/projects",
+            new CreateProjectRequest("OutboxProject", "outbox-proj"));
+        var probe = await PostAndRead<ProbeResponse>(
+            $"/api/v1/projects/{project.Id}/probes",
+            new CreateProbeRequest("OutboxProbe", probeUrl, 15));
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+
+        await WaitForHealthCheckAsync(db, probe.Id, timeout: TimeSpan.FromSeconds(20));
+
+        var processed = await WaitForOutboxProcessedAsync(db, TimeSpan.FromSeconds(15));
+        processed.Should().BeTrue("OutboxRelay should mark all messages processed within 15 seconds");
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task Probe_WithMultipleAssertions_WhenOneFails_RecordsFailureWithCorrectReason()
+    {
+        factory.WireMock
+            .Given(Request.Create().WithPath("/and-logic").UsingGet())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithBody("""{"status":"error"}""")
+                .WithHeader("Content-Type", "application/json"));
+
+        var probeUrl = $"{factory.WireMock.Urls[0]}/and-logic";
+        var org = await PostAndRead<OrganizationResponse>("/api/v1/organizations",
+            new CreateOrganizationRequest("AndOrg", "and-org"));
+        var project = await PostAndRead<ProjectResponse>(
+            $"/api/v1/organizations/{org.Id}/projects",
+            new CreateProjectRequest("AndProject", "and-proj"));
+        var probe = await PostAndRead<ProbeResponse>(
+            $"/api/v1/projects/{project.Id}/probes",
+            new CreateProbeRequest("AND Logic Probe", probeUrl, 15,
+                Assertions: new[]
+                {
+                    new CreateAssertionRequest("StatusCode", "Equals", "200"),
+                    new CreateAssertionRequest("JsonPath", "Equals", "ok", "$.status")
+                }));
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+        var check = await WaitForHealthCheckAsync(db, probe.Id, timeout: TimeSpan.FromSeconds(20));
+
+        check.Should().NotBeNull();
+        check!.IsSuccess.Should().BeFalse("JsonPath assertion expects 'ok' but body has 'error'");
+        check.FailureReason.Should().Contain("JsonPath");
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task Probe_WhenTargetTimesOut_RecordsFailure()
+    {
+        factory.WireMock
+            .Given(Request.Create().WithPath("/slow").UsingGet())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithDelay(TimeSpan.FromSeconds(15)));
+
+        var probeUrl = $"{factory.WireMock.Urls[0]}/slow";
+        var org = await PostAndRead<OrganizationResponse>("/api/v1/organizations",
+            new CreateOrganizationRequest("TimeoutOrg", "timeout-org"));
+        var project = await PostAndRead<ProjectResponse>(
+            $"/api/v1/organizations/{org.Id}/projects",
+            new CreateProjectRequest("TimeoutProject", "timeout-proj"));
+        var probe = await PostAndRead<ProbeResponse>(
+            $"/api/v1/projects/{project.Id}/probes",
+            new CreateProbeRequest("Timeout Probe", probeUrl, 15));
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+        var check = await WaitForHealthCheckAsync(db, probe.Id, timeout: TimeSpan.FromSeconds(25));
+
+        check.Should().NotBeNull("probe should have executed and recorded a failure");
+        check!.IsSuccess.Should().BeFalse();
+        check.FailureReason.Should().Contain("timed out",
+            "ProbeWorker records timeout as 'Probe timed out after Ns'");
+    }
+
+    [Fact(Timeout = 20_000)]
+    public async Task Probe_WhenHostDoesNotExist_RecordsFailure()
+    {
+        var org = await PostAndRead<OrganizationResponse>("/api/v1/organizations",
+            new CreateOrganizationRequest("DnsOrg", "dns-org"));
+        var project = await PostAndRead<ProjectResponse>(
+            $"/api/v1/organizations/{org.Id}/projects",
+            new CreateProjectRequest("DnsProject", "dns-proj"));
+        var probe = await PostAndRead<ProbeResponse>(
+            $"/api/v1/projects/{project.Id}/probes",
+            new CreateProbeRequest("DNS Probe",
+                "https://this-host-does-not-exist-pulsewatch.invalid/health", 15));
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+        var check = await WaitForHealthCheckAsync(db, probe.Id, timeout: TimeSpan.FromSeconds(15));
+
+        check.Should().NotBeNull("probe should have recorded a DNS failure");
+        check!.IsSuccess.Should().BeFalse();
+        check.FailureReason.Should().NotBeNullOrEmpty("HttpRequestException message should be captured");
+    }
+
+    [Fact(Timeout = 15_000)]
+    public async Task ProbeScheduler_WhenProbeIsInactive_DoesNotExecuteIt()
+    {
+        // Insert inactive probe directly — avoids race between API create and deactivation
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+
+        var org = new PulseWatch.Core.Entities.Organization("InactiveOrg", "inactive-org");
+        var project = new PulseWatch.Core.Entities.Project(org.Id, "InactiveProject", "inactive-proj");
+        var probe = new PulseWatch.Core.Entities.Probe(project.Id, "Inactive Probe",
+            "https://example.com/health", 15);
+        probe.Deactivate();
+        db.Organizations.Add(org);
+        db.Projects.Add(project);
+        db.Probes.Add(probe);
+        await db.SaveChangesAsync();
+
+        await Task.Delay(TimeSpan.FromSeconds(10));
+
+        db.ChangeTracker.Clear();
+        var count = await db.HealthChecks.CountAsync(h => h.ProbeId == probe.Id);
+        count.Should().Be(0, "inactive probe must never be scheduled");
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task ProbeScheduler_DoesNotReExecuteProbeBeforeIntervalElapsed()
+    {
+        factory.WireMock
+            .Given(Request.Create().WithPath("/interval-gate").UsingGet())
+            .RespondWith(Response.Create().WithStatusCode(200));
+
+        var probeUrl = $"{factory.WireMock.Urls[0]}/interval-gate";
+        var org = await PostAndRead<OrganizationResponse>("/api/v1/organizations",
+            new CreateOrganizationRequest("IntervalOrg", "interval-org"));
+        var project = await PostAndRead<ProjectResponse>(
+            $"/api/v1/organizations/{org.Id}/projects",
+            new CreateProjectRequest("IntervalProject", "interval-proj"));
+        var probe = await PostAndRead<ProbeResponse>(
+            $"/api/v1/projects/{project.Id}/probes",
+            new CreateProbeRequest("Interval Probe", probeUrl, 30));
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+
+        // Wait for exactly one check
+        await WaitForHealthCheckAsync(db, probe.Id, timeout: TimeSpan.FromSeconds(20));
+
+        // Wait well below the 30s interval
+        await Task.Delay(TimeSpan.FromSeconds(5));
+
+        var count = await db.HealthChecks.CountAsync(h => h.ProbeId == probe.Id);
+        count.Should().Be(1, "scheduler must respect IntervalSeconds and not re-execute before 30s");
+    }
+
     private async Task<T> PostAndRead<T>(string url, object body)
     {
         var response = await _client.PostAsJsonAsync(url, body);
@@ -102,5 +265,18 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
             if (check is not null) return check;
         }
         return null;
+    }
+
+    private static async Task<bool> WaitForOutboxProcessedAsync(PulseDbContext db, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(500);
+            db.ChangeTracker.Clear();
+            var pending = await db.OutboxMessages.CountAsync(m => m.ProcessedAt == null);
+            if (pending == 0) return true;
+        }
+        return false;
     }
 }
