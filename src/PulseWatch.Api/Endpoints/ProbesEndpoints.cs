@@ -34,6 +34,13 @@ public static class ProbesEndpoints
         if (!await db.Projects.AnyAsync(p => p.Id == projectId, ct))
             return Results.NotFound();
 
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return Results.Problem(detail: "name is required", statusCode: 400);
+        if (string.IsNullOrWhiteSpace(req.Url))
+            return Results.Problem(detail: "url is required", statusCode: 400);
+        if (req.IntervalSeconds < 15)
+            return Results.Problem(detail: "intervalSeconds must be >= 15", statusCode: 400);
+
         var probe = new Probe(projectId, req.Name, req.Url, req.IntervalSeconds);
         db.Probes.Add(probe);
 

@@ -26,6 +26,11 @@ public static class ProjectsEndpoints
 
     static async Task<IResult> Create(Guid orgId, CreateProjectRequest req, IProjectRepository repo, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return Results.Problem(detail: "name is required", statusCode: 400);
+        if (string.IsNullOrWhiteSpace(req.Slug))
+            return Results.Problem(detail: "slug is required", statusCode: 400);
+
         var project = new Project(orgId, req.Name, req.Slug);
         await repo.AddAsync(project, ct);
         return Results.Created($"/api/v1/organizations/{orgId}/projects/{project.Id}",

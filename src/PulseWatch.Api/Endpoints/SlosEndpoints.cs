@@ -29,6 +29,11 @@ public static class SlosEndpoints
         if (probe is null || probe.ProjectId != projectId)
             return Results.NotFound();
 
+        if (req.TargetAvailabilityPct is < 0 or > 100)
+            return Results.Problem(detail: "targetAvailabilityPct must be between 0 and 100", statusCode: 400);
+        if (req.WindowDays < 1)
+            return Results.Problem(detail: "windowDays must be >= 1", statusCode: 400);
+
         var def = new SloDefinition(probeId, req.TargetAvailabilityPct, req.WindowDays, req.TargetLatencyP95Ms);
         await sloRepo.AddAsync(def, ct);
         return Results.Created(

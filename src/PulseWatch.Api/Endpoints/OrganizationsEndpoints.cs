@@ -26,6 +26,11 @@ public static class OrganizationsEndpoints
 
     static async Task<IResult> Create(CreateOrganizationRequest req, IOrganizationRepository repo, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return Results.Problem(detail: "name is required", statusCode: 400);
+        if (string.IsNullOrWhiteSpace(req.Slug))
+            return Results.Problem(detail: "slug is required", statusCode: 400);
+
         var org = new Organization(req.Name, req.Slug);
         await repo.AddAsync(org, ct);
         return Results.Created($"/api/v1/organizations/{org.Id}",
