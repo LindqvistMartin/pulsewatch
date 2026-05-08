@@ -77,8 +77,8 @@ public class SloApiTests(ApiFactory factory) : IAsyncLifetime
         // Trigger rollup refresh and SLO calculation synchronously
         await RollupRefresher.RefreshOnceAsync(db);
         var calculator = new SloCalculator(
-            scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(),
-            scope.ServiceProvider.GetRequiredService<ILogger<SloCalculator>>());
+            factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            factory.Services.GetRequiredService<ILogger<SloCalculator>>());
         await calculator.ComputeAllAsync(CancellationToken.None);
 
         // Verify measurement was written

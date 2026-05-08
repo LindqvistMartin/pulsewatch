@@ -64,6 +64,10 @@ public sealed class PipelineApiFactory : WebApplicationFactory<Program>, IAsyncL
 
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+        await db.SloMeasurements.ExecuteDeleteAsync();
+        await db.SloDefinitions.ExecuteDeleteAsync();
+        await db.IncidentUpdates.ExecuteDeleteAsync();
+        await db.Incidents.ExecuteDeleteAsync();
         await db.OutboxMessages.ExecuteDeleteAsync();
         await db.HealthChecks.ExecuteDeleteAsync();
         await db.ProbeAssertions.ExecuteDeleteAsync();

@@ -77,6 +77,9 @@ internal sealed class OutboxRelay(
             db.Entry(msg).State = EntityState.Modified;
         }
 
+        // At-least-once delivery: if SaveChangesAsync or CommitAsync throws (e.g., DB failover),
+        // this batch will be reprocessed on the next tick. Connected clients receive duplicate
+        // broadcasts but re-fetch state from the API on reconnect, so duplicates are benign.
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
