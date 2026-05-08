@@ -11,6 +11,10 @@ public sealed class PulseDbContext(DbContextOptions<PulseDbContext> options) : D
     public DbSet<ProbeAssertion> ProbeAssertions => Set<ProbeAssertion>();
     public DbSet<HealthCheck> HealthChecks => Set<HealthCheck>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<SloDefinition> SloDefinitions => Set<SloDefinition>();
+    public DbSet<SloMeasurement> SloMeasurements => Set<SloMeasurement>();
+    public DbSet<Incident> Incidents => Set<Incident>();
+    public DbSet<IncidentUpdate> IncidentUpdates => Set<IncidentUpdate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
