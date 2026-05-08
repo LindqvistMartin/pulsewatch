@@ -68,6 +68,8 @@ app.MapPrometheusScrapingEndpoint();
 app.MapOrganizationsEndpoints();
 app.MapProjectsEndpoints();
 app.MapProbesEndpoints();
+app.MapSlosEndpoints();
+app.MapIncidentsEndpoints();
 app.MapHub<PulseHub>("/hubs/pulse");
 
 app.Run();
