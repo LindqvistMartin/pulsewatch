@@ -10,9 +10,14 @@ public sealed class BodyRegexEvaluator : IAssertionEvaluator
         if (context.Body is null)
             return EvaluationResult.Fail("Response body is null");
 
+        // Equals: pattern must match the entire body; Contains: partial match anywhere
+        var pattern = assertion.Operator == AssertionOperator.Equals
+            ? $"^(?:{assertion.ExpectedValue})$"
+            : assertion.ExpectedValue;
+
         try
         {
-            var isMatch = Regex.IsMatch(context.Body, assertion.ExpectedValue,
+            var isMatch = Regex.IsMatch(context.Body, pattern,
                 RegexOptions.None, TimeSpan.FromSeconds(1));
 
             return isMatch
@@ -22,6 +27,10 @@ public sealed class BodyRegexEvaluator : IAssertionEvaluator
         catch (RegexMatchTimeoutException)
         {
             return EvaluationResult.Fail("Regex evaluation timed out");
+        }
+        catch (RegexParseException ex)
+        {
+            return EvaluationResult.Fail($"Invalid regex pattern: {ex.Message}");
         }
     }
 }

@@ -12,15 +12,22 @@ public sealed class StatusCodeEvaluator : IAssertionEvaluator
         if (!int.TryParse(assertion.ExpectedValue, out var expected))
             return EvaluationResult.Fail($"Invalid expected value '{assertion.ExpectedValue}'");
 
-        var passed = assertion.Operator switch
-        {
-            AssertionOperator.Equals   => context.StatusCode.Value == expected,
-            AssertionOperator.LessThan => context.StatusCode.Value < expected,
-            _                          => false
-        };
+        if (assertion.Operator is not (AssertionOperator.Equals or AssertionOperator.LessThan))
+            return EvaluationResult.Fail($"Operator '{assertion.Operator}' is not supported for StatusCode assertions");
+
+        var passed = assertion.Operator == AssertionOperator.Equals
+            ? context.StatusCode.Value == expected
+            : context.StatusCode.Value < expected;
 
         return passed
             ? EvaluationResult.Pass()
-            : EvaluationResult.Fail($"StatusCode {context.StatusCode} {assertion.Operator} {expected} failed");
+            : EvaluationResult.Fail($"StatusCode {context.StatusCode} is {OperatorPhrase(assertion.Operator)} {expected}");
     }
+
+    private static string OperatorPhrase(AssertionOperator op) => op switch
+    {
+        AssertionOperator.Equals   => "not equal to",
+        AssertionOperator.LessThan => "not less than",
+        _                          => op.ToString()
+    };
 }

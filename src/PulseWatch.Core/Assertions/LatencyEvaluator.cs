@@ -9,15 +9,22 @@ public sealed class LatencyEvaluator : IAssertionEvaluator
         if (!long.TryParse(assertion.ExpectedValue, out var expected))
             return EvaluationResult.Fail($"Invalid expected value '{assertion.ExpectedValue}'");
 
-        var passed = assertion.Operator switch
-        {
-            AssertionOperator.Equals   => context.ResponseTimeMs == expected,
-            AssertionOperator.LessThan => context.ResponseTimeMs < expected,
-            _                          => false
-        };
+        if (assertion.Operator is not (AssertionOperator.Equals or AssertionOperator.LessThan))
+            return EvaluationResult.Fail($"Operator '{assertion.Operator}' is not supported for LatencyMs assertions");
+
+        var passed = assertion.Operator == AssertionOperator.Equals
+            ? context.ResponseTimeMs == expected
+            : context.ResponseTimeMs < expected;
 
         return passed
             ? EvaluationResult.Pass()
-            : EvaluationResult.Fail($"Latency {context.ResponseTimeMs}ms {assertion.Operator} {expected}ms failed");
+            : EvaluationResult.Fail($"Latency {context.ResponseTimeMs}ms is {OperatorPhrase(assertion.Operator)} {expected}ms");
     }
+
+    private static string OperatorPhrase(AssertionOperator op) => op switch
+    {
+        AssertionOperator.Equals   => "not equal to",
+        AssertionOperator.LessThan => "not less than",
+        _                          => op.ToString()
+    };
 }
