@@ -1,7 +1,9 @@
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using PulseWatch.Api.BackgroundServices;
 using PulseWatch.Api.Endpoints;
+using PulseWatch.Api.Hubs;
 using PulseWatch.Infrastructure;
 using PulseWatch.Infrastructure.Persistence;
 using Scalar.AspNetCore;
@@ -25,6 +27,8 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
     ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required");
 
 builder.Services.AddInfrastructure(connectionString);
+builder.Services.AddSignalR();
+builder.Services.AddHostedService<OutboxRelay>();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins("http://localhost:5173").AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
@@ -64,5 +68,6 @@ app.MapPrometheusScrapingEndpoint();
 app.MapOrganizationsEndpoints();
 app.MapProjectsEndpoints();
 app.MapProbesEndpoints();
+app.MapHub<PulseHub>("/hubs/pulse");
 
 app.Run();

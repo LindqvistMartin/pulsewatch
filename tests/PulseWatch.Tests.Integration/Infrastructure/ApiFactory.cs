@@ -55,6 +55,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 .Where(d => d.ImplementationType?.FullName?.StartsWith("PulseWatch.Infrastructure.Probes") == true)
                 .ToList();
             foreach (var d in bgServices) services.Remove(d);
+
+            // Also disable OutboxRelay (lives in Api, not caught by the filter above)
+            var outboxRelay = services.SingleOrDefault(d =>
+                d.ImplementationType?.FullName == "PulseWatch.Api.BackgroundServices.OutboxRelay");
+            if (outboxRelay is not null) services.Remove(outboxRelay);
         });
     }
 
