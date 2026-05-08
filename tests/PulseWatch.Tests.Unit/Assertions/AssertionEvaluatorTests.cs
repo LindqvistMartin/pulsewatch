@@ -69,6 +69,7 @@ public class AssertionEvaluatorTests
     [InlineData("ok",             "ok", AssertionOperator.Equals,   true)]   // pattern matches entire body
     [InlineData("ok extra stuff", "ok", AssertionOperator.Equals,   false)]  // partial match but Equals requires whole body
     [InlineData("ok extra stuff", "ok", AssertionOperator.Contains, true)]   // Contains: partial match is fine
+    [InlineData("ok\n",           "ok", AssertionOperator.Equals,   false)]  // trailing \n: $ would pass, \z must not
     public void BodyRegex_Equals_RequiresFullMatch(string body, string pattern, AssertionOperator op, bool pass)
     {
         var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.BodyRegex, op, pattern);
@@ -117,6 +118,15 @@ public class AssertionEvaluatorTests
             AssertionOperator.Equals, "ok", jsonPath: "$.status");
         var ctx = new AssertionContext(200, 50, """{"status":"error"}""");
         new JsonPathEvaluator().Evaluate(assertion, ctx).Passed.Should().BeFalse();
+    }
+
+    [Fact]
+    public void JsonPath_Equals_BooleanValue_ComparesAsLowercaseString()
+    {
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.Equals, "true", jsonPath: "$.active");
+        var ctx = new AssertionContext(200, 50, """{"active":true}""");
+        new JsonPathEvaluator().Evaluate(assertion, ctx).Passed.Should().BeTrue();
     }
 
     [Fact]

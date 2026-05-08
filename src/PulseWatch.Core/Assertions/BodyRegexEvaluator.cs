@@ -10,9 +10,11 @@ public sealed class BodyRegexEvaluator : IAssertionEvaluator
         if (context.Body is null)
             return EvaluationResult.Fail("Response body is null");
 
-        // Equals: pattern must match the entire body; Contains: partial match anywhere
+        // Equals: pattern must match the entire body; Contains: partial match anywhere.
+        // Use \A/\z (absolute start/end) not ^/$ — in .NET, $ matches before a trailing \n,
+        // so "ok\n" would pass ^ok$ despite the extra character.
         var pattern = assertion.Operator == AssertionOperator.Equals
-            ? $"^(?:{assertion.ExpectedValue})$"
+            ? $@"\A(?:{assertion.ExpectedValue})\z"
             : assertion.ExpectedValue;
 
         try
