@@ -6,7 +6,9 @@ public sealed class OutboxMessage
     public string Type { get; private set; } = default!;
     public string Payload { get; private set; } = default!;
     public DateTime CreatedAt { get; private set; }
-    public DateTime? ProcessedAt { get; set; }
+    public DateTime? ProcessedAt { get; private set; }
+
+    public void MarkProcessed() => ProcessedAt = DateTime.UtcNow;
 
     private OutboxMessage() { }
 

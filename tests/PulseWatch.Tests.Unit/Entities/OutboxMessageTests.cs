@@ -29,13 +29,13 @@ public class OutboxMessageTests
     }
 
     [Fact]
-    public void ProcessedAt_CanBeSetAfterConstruction()
+    public void MarkProcessed_SetsProcessedAt()
     {
         var msg = new OutboxMessage("Test", "{}");
-        var now = DateTime.UtcNow;
 
-        msg.ProcessedAt = now;
+        msg.MarkProcessed();
 
-        msg.ProcessedAt.Should().Be(now);
+        msg.ProcessedAt.Should().NotBeNull();
+        msg.ProcessedAt!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 }

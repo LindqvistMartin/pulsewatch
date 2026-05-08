@@ -71,9 +71,9 @@ internal sealed class OutboxRelay(
                     msg.Id, msg.Type);
             }
 
-            // Mark processed regardless of dispatch outcome. Explicit state assignment
-            // guards against EF change tracker not detecting the mutation in edge cases.
-            msg.ProcessedAt = DateTime.UtcNow;
+            // Mark processed regardless of dispatch outcome. Explicit Modified guard
+            // ensures EF tracks the mutation even if the entity was in a detached state.
+            msg.MarkProcessed();
             db.Entry(msg).State = EntityState.Modified;
         }
 
