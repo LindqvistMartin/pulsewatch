@@ -100,4 +100,26 @@ public class ProbesApiTests(ApiFactory factory) : IAsyncLifetime
         var getResponse = await _client.GetAsync($"/api/v1/projects/{projectId}/probes/{probe.Id}");
         getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task Post_WithIntervalBelowMinimum_Returns400()
+    {
+        var (_, projectId) = await CreateHierarchyAsync();
+
+        var response = await _client.PostAsJsonAsync($"/api/v1/projects/{projectId}/probes",
+            new CreateProbeRequest("API", "https://example.com", 5));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Post_WithBlankName_Returns400()
+    {
+        var (_, projectId) = await CreateHierarchyAsync();
+
+        var response = await _client.PostAsJsonAsync($"/api/v1/projects/{projectId}/probes",
+            new CreateProbeRequest("", "https://example.com", 30));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }

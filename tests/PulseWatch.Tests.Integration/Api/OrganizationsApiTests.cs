@@ -47,4 +47,22 @@ public class OrganizationsApiTests(ApiFactory factory) : IAsyncLifetime
         var response = await _client.GetAsync($"/api/v1/organizations/{Guid.NewGuid()}");
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task Post_WithBlankName_Returns400()
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1/organizations",
+            new CreateOrganizationRequest("", "valid-slug"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Post_WithBlankSlug_Returns400()
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1/organizations",
+            new CreateOrganizationRequest("Valid Name", ""));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }
