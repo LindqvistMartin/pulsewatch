@@ -243,6 +243,34 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
         count.Should().Be(1, "scheduler must respect IntervalSeconds and not re-execute before 30s");
     }
 
+    [Fact(Timeout = 15_000)]
+    public async Task OutboxRelay_WhenPayloadMissingProjectId_MarksMessageProcessedWithoutRetry()
+    {
+        // Valid JSON but missing ProjectId — after the TryGetProperty fix OutboxRelay logs
+        // an error and marks the message processed rather than retrying indefinitely.
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+
+        var poison = new PulseWatch.Core.Entities.OutboxMessage(
+            "HealthCheckRecorded", """{"ProbeId":"00000000-0000-0000-0000-000000000000"}""");
+        db.OutboxMessages.Add(poison);
+        await db.SaveChangesAsync();
+
+        // Use a LINQ projection (not FindAsync) to always query the DB, not the change tracker.
+        var deadline = DateTime.UtcNow.AddSeconds(12);
+        while (DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(500);
+            var processedAt = await db.OutboxMessages
+                .Where(m => m.Id == poison.Id)
+                .Select(m => m.ProcessedAt)
+                .FirstOrDefaultAsync();
+            if (processedAt != null) return; // test passed
+        }
+
+        Assert.Fail("OutboxRelay did not mark broken-payload message as processed within 12 seconds");
+    }
+
     private async Task<T> PostAndRead<T>(string url, object body)
     {
         var response = await _client.PostAsJsonAsync(url, body);
@@ -273,7 +301,7 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
         while (DateTime.UtcNow < deadline)
         {
             await Task.Delay(500);
-            db.ChangeTracker.Clear();
+            // LINQ queries always hit the DB; no change-tracker clear needed.
             var pending = await db.OutboxMessages.CountAsync(m => m.ProcessedAt == null);
             if (pending == 0) return true;
         }

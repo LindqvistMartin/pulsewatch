@@ -51,6 +51,9 @@ internal sealed class OutboxRelay(
             return;
         }
 
+        if (messages.Count == 50)
+            logger.LogWarning("OutboxRelay batch was full (50 messages) — relay may be falling behind");
+
         foreach (var msg in messages)
         {
             try
@@ -58,9 +61,22 @@ internal sealed class OutboxRelay(
                 if (msg.Type == "HealthCheckRecorded")
                 {
                     using var doc = JsonDocument.Parse(msg.Payload);
-                    var projectId = doc.RootElement.GetProperty("ProjectId").GetGuid();
-                    await hub.Clients.Group($"proj:{projectId}")
-                        .SendAsync("HealthCheckRecorded", msg.Payload, ct);
+                    // Use TryGet to avoid exception-driven flow for foreseeable payload issues.
+                    if (!doc.RootElement.TryGetProperty("ProjectId", out var projProp)
+                        || !projProp.TryGetGuid(out var projectId))
+                    {
+                        logger.LogError("Outbox message {Id} missing or invalid ProjectId in payload", msg.Id);
+                    }
+                    else
+                    {
+                        await hub.Clients.Group($"proj:{projectId}")
+                            .SendAsync("HealthCheckRecorded", msg.Payload, ct);
+                    }
+                }
+                else
+                {
+                    logger.LogWarning("OutboxRelay skipped unrecognized message type {Type} (id={Id})",
+                        msg.Type, msg.Id);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
