@@ -43,16 +43,14 @@ internal sealed class ProbeWorker(
         try
         {
             using var request = new HttpRequestMessage(new HttpMethod(job.Method), job.Url);
-            var response = await client.SendAsync(request, ct); // no using — dispose after reading body
+            // using var response ensures disposal on all paths including mid-stream read exceptions
+            using var response = await client.SendAsync(request, ct);
             sw.Stop();
             statusCode = (int)response.StatusCode;
 
-            // Read body only when needed for assertions (before disposing response)
             string? body = null;
             if (job.Assertions.Any(a => a.Type is AssertionType.BodyRegex or AssertionType.JsonPath))
                 body = await response.Content.ReadAsStringAsync(ct);
-
-            response.Dispose();
 
             if (job.Assertions.Count > 0)
             {
@@ -99,6 +97,9 @@ internal sealed class ProbeWorker(
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
+            // MarkCheckedAsync is outside the transaction by design: accepted at-least-once semantics.
+            // If the process crashes between CommitAsync and here, the probe fires again on the next
+            // scheduler tick and writes a duplicate HealthCheck row. This is benign for a monitoring tool.
             await probeRepo.MarkCheckedAsync(job.ProbeId, ct);
 
             logger.LogInformation("Probe {ProbeId} {Result} in {Ms}ms",

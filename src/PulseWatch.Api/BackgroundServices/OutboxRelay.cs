@@ -62,14 +62,19 @@ internal sealed class OutboxRelay(
                     await hub.Clients.Group($"proj:{projectId}")
                         .SendAsync("HealthCheckRecorded", msg.Payload, ct);
                 }
-
-                msg.ProcessedAt = DateTime.UtcNow;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogWarning(ex, "Failed to relay outbox message {Id}", msg.Id);
-                // Not marked processed → retried on next batch
+                // Poison-message: mark processed anyway to prevent infinite retry loop.
+                // The SignalR broadcast is best-effort; connected clients re-fetch on reconnect.
+                logger.LogError(ex, "Undeliverable outbox message {Id} (type={Type}) — skipping to prevent stuck relay",
+                    msg.Id, msg.Type);
             }
+
+            // Mark processed regardless of dispatch outcome. Explicit state assignment
+            // guards against EF change tracker not detecting the mutation in edge cases.
+            msg.ProcessedAt = DateTime.UtcNow;
+            db.Entry(msg).State = EntityState.Modified;
         }
 
         await db.SaveChangesAsync(ct);

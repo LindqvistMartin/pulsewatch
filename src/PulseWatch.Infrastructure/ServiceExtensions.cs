@@ -21,9 +21,11 @@ public static class ServiceExtensions
         services.AddScoped<IProbeRepository, ProbeRepository>();
         services.AddScoped<IHealthCheckRepository, HealthCheckRepository>();
 
+        // DropWrite: TryWrite returns false when full, so the scheduler warning log fires correctly.
+        // DropOldest silently evicts the longest-waiting job and makes TryWrite always return true.
         var channel = Channel.CreateBounded<ProbeJob>(new BoundedChannelOptions(1000)
         {
-            FullMode = BoundedChannelFullMode.DropOldest
+            FullMode = BoundedChannelFullMode.DropWrite
         });
         services.AddSingleton(channel);
         services.AddHostedService<ProbeScheduler>();
