@@ -4,6 +4,7 @@ using OpenTelemetry.Trace;
 using PulseWatch.Api.BackgroundServices;
 using PulseWatch.Api.Endpoints;
 using PulseWatch.Api.Hubs;
+using PulseWatch.Api.Middleware;
 using PulseWatch.Infrastructure;
 using PulseWatch.Infrastructure.Persistence;
 using Scalar.AspNetCore;
@@ -29,6 +30,7 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddSignalR();
 builder.Services.AddHostedService<OutboxRelay>();
+builder.Services.AddMemoryCache();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.WithOrigins("http://localhost:5173").AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
@@ -52,6 +54,7 @@ var app = builder.Build();
 
 app.UseSerilogRequestLogging();
 app.UseCors();
+app.UseMiddleware<IdempotencyMiddleware>();
 
 app.MapGet("/", () => "PulseWatch API");
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
