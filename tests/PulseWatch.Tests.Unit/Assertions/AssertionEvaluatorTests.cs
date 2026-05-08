@@ -166,6 +166,102 @@ public class AssertionEvaluatorTests
         result.FailureMessage.Should().Contain("not supported");
     }
 
+    [Fact]
+    public void JsonPath_UnsupportedOperator_NullBody_ReportsOperatorError()
+    {
+        // Operator guard fires before null-body guard — mirrors BodyRegexEvaluator ordering.
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.LessThan, "ok", jsonPath: "$.status");
+        var result = new JsonPathEvaluator().Evaluate(assertion, new AssertionContext(200, 50, null));
+        result.Passed.Should().BeFalse();
+        result.FailureMessage.Should().Contain("not supported");
+    }
+
+    [Fact]
+    public void JsonPath_MultiMatchPath_ReturnsFail()
+    {
+        // $[*].status matches two nodes — silently picking [0] would mask partial failures.
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.Equals, "ok", jsonPath: "$[*].status");
+        var ctx = new AssertionContext(200, 50,
+            """[{"status":"ok"},{"status":"error"}]""");
+        var result = new JsonPathEvaluator().Evaluate(assertion, ctx);
+        result.Passed.Should().BeFalse();
+        result.FailureMessage.Should().Contain("matched 2 values");
+    }
+
+    [Fact]
+    public void JsonPath_Contains_UsesRegex_NotSubstring()
+    {
+        // Contains should be regex-consistent with BodyRegex.Contains.
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.Contains, @"\d+", jsonPath: "$.code");
+        var ctx = new AssertionContext(200, 50, """{"code":"abc123"}""");
+        new JsonPathEvaluator().Evaluate(assertion, ctx).Passed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void JsonPath_Contains_InvalidRegex_ReturnsFail()
+    {
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.Contains, "[invalid", jsonPath: "$.v");
+        var result = new JsonPathEvaluator().Evaluate(assertion,
+            new AssertionContext(200, 50, """{"v":"test"}"""));
+        result.Passed.Should().BeFalse();
+        result.FailureMessage.Should().Contain("Invalid regex");
+    }
+
+    [Fact]
+    public void JsonPath_NullValueAtPath_ReturnsFailWithNullLiteral()
+    {
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.Equals, "ok", jsonPath: "$.status");
+        var ctx = new AssertionContext(200, 50, """{"status":null}""");
+        var result = new JsonPathEvaluator().Evaluate(assertion, ctx);
+        result.Passed.Should().BeFalse();
+        result.FailureMessage.Should().Contain("null");
+    }
+
+    [Fact]
+    public void JsonPath_PathNotFound_ReturnsFail()
+    {
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.Equals, "ok", jsonPath: "$.missing");
+        var ctx = new AssertionContext(200, 50, """{"status":"ok"}""");
+        var result = new JsonPathEvaluator().Evaluate(assertion, ctx);
+        result.Passed.Should().BeFalse();
+        result.FailureMessage.Should().Contain("matched nothing");
+    }
+
+    [Fact]
+    public void JsonPath_InvalidJsonBody_ReturnsFail()
+    {
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.JsonPath,
+            AssertionOperator.Equals, "ok", jsonPath: "$.status");
+        var result = new JsonPathEvaluator().Evaluate(assertion,
+            new AssertionContext(200, 50, "{not valid json}"));
+        result.Passed.Should().BeFalse();
+        result.FailureMessage.Should().Contain("JsonPath evaluation error");
+    }
+
+    [Fact]
+    public void StatusCode_LessThan_PassesForLowerCode()
+    {
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.StatusCode,
+            AssertionOperator.LessThan, "400");
+        new StatusCodeEvaluator().Evaluate(assertion, new AssertionContext(200, 100, null))
+            .Passed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void StatusCode_LessThan_FailsForEqualCode()
+    {
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.StatusCode,
+            AssertionOperator.LessThan, "400");
+        new StatusCodeEvaluator().Evaluate(assertion, new AssertionContext(400, 100, null))
+            .Passed.Should().BeFalse();
+    }
+
     // ── Entity invariants ────────────────────────────────────────────────
     [Fact]
     public void ProbeAssertion_JsonPath_NullExpression_Throws()
