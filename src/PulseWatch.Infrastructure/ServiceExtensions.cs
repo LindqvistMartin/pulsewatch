@@ -5,8 +5,8 @@ using PulseWatch.Core.Abstractions;
 using PulseWatch.Core.Probes;
 using PulseWatch.Infrastructure.Persistence;
 using PulseWatch.Infrastructure.Persistence.Repositories;
-
 using PulseWatch.Infrastructure.Probes;
+using PulseWatch.Infrastructure.Slo;
 
 namespace PulseWatch.Infrastructure;
 
@@ -20,6 +20,8 @@ public static class ServiceExtensions
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IProbeRepository, ProbeRepository>();
         services.AddScoped<IHealthCheckRepository, HealthCheckRepository>();
+        services.AddScoped<ISloRepository, SloRepository>();
+        services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         // DropWrite: TryWrite returns false when full, so the scheduler warning log fires correctly.
         // DropOldest silently evicts the longest-waiting job and makes TryWrite always return true.
@@ -31,6 +33,10 @@ public static class ServiceExtensions
         services.AddHostedService<ProbeScheduler>();
         for (int i = 0; i < 4; i++)
             services.AddHostedService<ProbeWorker>();
+
+        services.AddHostedService<RollupRefresher>();
+        services.AddSingleton<SloCalculator>();
+        services.AddHostedService(sp => sp.GetRequiredService<SloCalculator>());
 
         services.AddHttpClient("probe", c =>
         {
