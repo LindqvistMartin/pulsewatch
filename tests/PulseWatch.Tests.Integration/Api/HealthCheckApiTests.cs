@@ -80,4 +80,38 @@ public class HealthCheckApiTests(ApiFactory factory) : IAsyncLifetime
         var response = await _client.GetAsync("/healthz/ready");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
+
+    [Fact]
+    public async Task GetChecks_WithDateRange_ReturnsOnlyChecksInRange()
+    {
+        var (projectId, probeId) = await CreateProbeAsync();
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
+
+        var now = DateTime.UtcNow;
+
+        // Two checks within range
+        var inRange1 = new HealthCheck(probeId, 200, 100, true);
+        var inRange2 = new HealthCheck(probeId, 200, 120, true);
+        // One check outside range (3 days ago)
+        var outOfRange = new HealthCheck(probeId, 200, 80, true);
+
+        db.HealthChecks.AddRange(inRange1, inRange2, outOfRange);
+        await db.SaveChangesAsync();
+
+        // Backdate outOfRange via EF change tracker (CheckedAt has private setter)
+        db.Entry(outOfRange).Property(nameof(HealthCheck.CheckedAt)).CurrentValue =
+            now.AddDays(-3);
+        await db.SaveChangesAsync();
+
+        var from = now.AddHours(-1).ToString("o");
+        var to = now.AddHours(1).ToString("o");
+
+        var checks = await (await _client.GetAsync(
+            $"/api/v1/projects/{projectId}/probes/{probeId}/checks?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}"))
+            .Content.ReadFromJsonAsync<List<HealthCheckResponse>>();
+
+        checks.Should().HaveCount(2, "only checks within the date range should be returned");
+    }
 }
