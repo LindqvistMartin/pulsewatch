@@ -10,7 +10,7 @@ internal sealed class ProbeRepository(PulseDbContext db) : IProbeRepository
         db.Probes.Include(p => p.Assertions).FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public async Task<IReadOnlyList<Probe>> GetActiveAsync(CancellationToken ct = default) =>
-        await db.Probes.Where(p => p.IsActive).ToListAsync(ct);
+        await db.Probes.Include(p => p.Assertions).Where(p => p.IsActive).ToListAsync(ct);
 
     public async Task<IReadOnlyList<Probe>> GetByProjectAsync(Guid projectId, CancellationToken ct = default) =>
         await db.Probes.Where(p => p.ProjectId == projectId).ToListAsync(ct);

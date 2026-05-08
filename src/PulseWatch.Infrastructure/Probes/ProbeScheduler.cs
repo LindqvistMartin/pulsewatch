@@ -39,10 +39,11 @@ internal sealed class ProbeScheduler(
 
                 var job = new ProbeJob(
                     probe.Id,
+                    probe.ProjectId,
                     probe.Url,
                     probe.Method,
                     probe.TimeoutSeconds,
-                    probe.Assertions.Select(a => a.Id).ToList());
+                    probe.Assertions.ToList());
 
                 if (!channel.Writer.TryWrite(job))
                     logger.LogWarning("Channel full, dropping probe job {ProbeId}", probe.Id);
