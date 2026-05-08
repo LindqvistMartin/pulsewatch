@@ -10,6 +10,9 @@ public sealed class BodyRegexEvaluator : IAssertionEvaluator
         if (context.Body is null)
             return EvaluationResult.Fail("Response body is null");
 
+        if (assertion.Operator is not (AssertionOperator.Equals or AssertionOperator.Contains))
+            return EvaluationResult.Fail($"Operator '{assertion.Operator}' is not supported for BodyRegex assertions");
+
         // Equals: pattern must match the entire body; Contains: partial match anywhere.
         // Use \A/\z (absolute start/end) not ^/$ — in .NET, $ matches before a trailing \n,
         // so "ok\n" would pass ^ok$ despite the extra character.

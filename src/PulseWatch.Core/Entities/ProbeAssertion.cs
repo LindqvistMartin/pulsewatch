@@ -19,6 +19,8 @@ public sealed class ProbeAssertion
     public ProbeAssertion(Guid probeId, AssertionType type, AssertionOperator op, string expectedValue, string? jsonPath = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedValue);
+        if (type == AssertionType.JsonPath)
+            ArgumentException.ThrowIfNullOrWhiteSpace(jsonPath, nameof(jsonPath));
         Id = Guid.NewGuid();
         ProbeId = probeId;
         Type = type;

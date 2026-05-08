@@ -47,7 +47,7 @@ public sealed class JsonPathEvaluator : IAssertionEvaluator
                 ? EvaluationResult.Pass()
                 : EvaluationResult.Fail($"JsonPath value '{actual}' is not {assertion.Operator.ToString().ToLower()} '{assertion.ExpectedValue}'");
         }
-        catch (Exception ex) when (ex is JsonException or PathParseException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return EvaluationResult.Fail($"JsonPath evaluation error: {ex.Message}");
         }
