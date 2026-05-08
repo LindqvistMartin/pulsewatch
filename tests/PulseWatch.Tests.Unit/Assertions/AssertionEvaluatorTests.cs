@@ -156,6 +156,16 @@ public class AssertionEvaluatorTests
         result.FailureMessage.Should().Contain("not supported");
     }
 
+    [Fact]
+    public void BodyRegex_UnsupportedOperator_NullBody_StillReportsOperatorError()
+    {
+        // Operator guard must fire before null-body guard so caller gets the accurate error.
+        var assertion = new ProbeAssertion(Guid.NewGuid(), AssertionType.BodyRegex, AssertionOperator.LessThan, "ok");
+        var result = new BodyRegexEvaluator().Evaluate(assertion, new AssertionContext(200, 50, null));
+        result.Passed.Should().BeFalse();
+        result.FailureMessage.Should().Contain("not supported");
+    }
+
     // ── Entity invariants ────────────────────────────────────────────────
     [Fact]
     public void ProbeAssertion_JsonPath_NullExpression_Throws()
