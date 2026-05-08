@@ -18,7 +18,7 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
     public Task InitializeAsync() => factory.CleanAsync();
     public Task DisposeAsync() => Task.CompletedTask;
 
-    [Fact]
+    [Fact(Timeout = 25_000)]
     public async Task Probe_ExecutesAndRecordsSuccessfulHealthCheck()
     {
         factory.WireMock
@@ -48,7 +48,7 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
         check.StatusCode.Should().Be(200);
     }
 
-    [Fact]
+    [Fact(Timeout = 25_000)]
     public async Task Probe_WithStatusCodeAssertion_RecordsFailureWhenMismatch()
     {
         // WireMock returns 200, assertion expects 201 → should fail

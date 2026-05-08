@@ -51,20 +51,38 @@ internal sealed class ProbeWorker(
             statusCode = (int)response.StatusCode;
 
             string? body = null;
-            if (job.Assertions.Any(a => a.Type is AssertionType.BodyRegex or AssertionType.JsonPath))
-                body = await response.Content.ReadAsStringAsync(ct);
+            bool bodySkipped = false;
 
-            if (job.Assertions.Count > 0)
+            if (job.Assertions.Any(a => a.Type is AssertionType.BodyRegex or AssertionType.JsonPath))
             {
-                var ctx = new AssertionContext(statusCode, sw.ElapsedMilliseconds, body);
-                var results = job.Assertions.Select(a => _factory.Get(a.Type).Evaluate(a, ctx)).ToList();
-                isSuccess = results.All(r => r.Passed);
-                if (!isSuccess)
-                    failureReason = string.Join("; ", results.Where(r => !r.Passed).Select(r => r.FailureMessage));
+                const long MaxBodyBytes = 1 * 1024 * 1024; // 1 MB
+                var contentLength = response.Content.Headers.ContentLength;
+                if (contentLength > MaxBodyBytes)
+                {
+                    isSuccess = false;
+                    failureReason = $"Response body too large ({contentLength / 1024}KB); body assertions skipped";
+                    bodySkipped = true;
+                }
+                else
+                {
+                    body = await response.Content.ReadAsStringAsync(ct);
+                }
             }
-            else
+
+            if (!bodySkipped)
             {
-                isSuccess = statusCode is >= 200 and < 300;
+                if (job.Assertions.Count > 0)
+                {
+                    var ctx = new AssertionContext(statusCode, sw.ElapsedMilliseconds, body);
+                    var results = job.Assertions.Select(a => _factory.Get(a.Type).Evaluate(a, ctx)).ToList();
+                    isSuccess = results.All(r => r.Passed);
+                    if (!isSuccess)
+                        failureReason = string.Join("; ", results.Where(r => !r.Passed).Select(r => r.FailureMessage));
+                }
+                else
+                {
+                    isSuccess = statusCode is >= 200 and < 300;
+                }
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)

@@ -39,7 +39,11 @@ public static class ServiceExtensions
 
         services.AddHttpClient("probe", c =>
         {
-            c.Timeout = TimeSpan.FromSeconds(10);
+            // Per-probe timeout is controlled exclusively by ProbeJob.TimeoutSeconds via a
+            // linked CancellationTokenSource in ProbeWorker. Setting InfiniteTimeSpan here
+            // removes the HttpClient-level cap that would otherwise silently override any
+            // TimeoutSeconds value and produce a misleading "timed out after Ns" message.
+            c.Timeout = Timeout.InfiniteTimeSpan;
             c.DefaultRequestHeaders.UserAgent.ParseAdd("PulseWatch/1.0");
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
