@@ -60,6 +60,8 @@ public sealed class PipelineApiFactory : WebApplicationFactory<Program>, IAsyncL
 
     public async Task CleanAsync()
     {
+        WireMock.Reset(); // clear stubs so they don't accumulate across tests (B7 fix)
+
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
         await db.OutboxMessages.ExecuteDeleteAsync();

@@ -21,7 +21,6 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
     [Fact]
     public async Task Probe_ExecutesAndRecordsSuccessfulHealthCheck()
     {
-        // Arrange
         factory.WireMock
             .Given(Request.Create().WithPath("/health").UsingGet())
             .RespondWith(Response.Create().WithStatusCode(200).WithBody("ok"));
@@ -34,17 +33,16 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
             $"/api/v1/organizations/{org.Id}/projects",
             new CreateProjectRequest("PipelineProject", "pipeline-proj"));
 
-        await _client.PostAsJsonAsync(
+        // Capture probeId from response to scope the wait query (B6 fix)
+        var probe = await PostAndRead<ProbeResponse>(
             $"/api/v1/projects/{project.Id}/probes",
             new CreateProbeRequest("Pipeline Health", probeUrl, 15));
 
-        // Act: poll DB until a health check appears (scheduler fires within 5s)
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
 
-        var check = await WaitForHealthCheckAsync(db, timeout: TimeSpan.FromSeconds(20));
+        var check = await WaitForHealthCheckAsync(db, probe.Id, timeout: TimeSpan.FromSeconds(20));
 
-        // Assert
         check.Should().NotBeNull("scheduler should have executed the probe within 20 seconds");
         check!.IsSuccess.Should().BeTrue();
         check.StatusCode.Should().Be(200);
@@ -66,7 +64,7 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
             $"/api/v1/organizations/{org.Id}/projects",
             new CreateProjectRequest("AssertPipelineProject", "assert-pipeline-proj"));
 
-        await _client.PostAsJsonAsync(
+        var probe = await PostAndRead<ProbeResponse>(
             $"/api/v1/projects/{project.Id}/probes",
             new CreateProbeRequest(
                 "Strict Probe", probeUrl, 15,
@@ -75,7 +73,7 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
 
-        var check = await WaitForHealthCheckAsync(db, timeout: TimeSpan.FromSeconds(20));
+        var check = await WaitForHealthCheckAsync(db, probe.Id, timeout: TimeSpan.FromSeconds(20));
 
         check.Should().NotBeNull("probe should have executed within 20 seconds");
         check!.IsSuccess.Should().BeFalse("status code 200 should fail the assertion expecting 201");
@@ -89,14 +87,16 @@ public class PipelineTests(PipelineApiFactory factory) : IAsyncLifetime
         return (await response.Content.ReadFromJsonAsync<T>())!;
     }
 
+    // B6 fix: scoped to a specific probeId — no longer picks up HealthChecks from other tests
     private static async Task<PulseWatch.Core.Entities.HealthCheck?> WaitForHealthCheckAsync(
-        PulseDbContext db, TimeSpan timeout)
+        PulseDbContext db, Guid probeId, TimeSpan timeout)
     {
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
             await Task.Delay(500);
             var check = await db.HealthChecks
+                .Where(h => h.ProbeId == probeId)
                 .OrderByDescending(h => h.CheckedAt)
                 .FirstOrDefaultAsync();
             if (check is not null) return check;
