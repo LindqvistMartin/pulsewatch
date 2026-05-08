@@ -47,6 +47,8 @@ internal sealed class ProbeScheduler(
 
                 if (!channel.Writer.TryWrite(job))
                     logger.LogWarning("Channel full, dropping probe job {ProbeId}", probe.Id);
+                else
+                    await repo.MarkCheckedAsync(probe.Id, ct);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

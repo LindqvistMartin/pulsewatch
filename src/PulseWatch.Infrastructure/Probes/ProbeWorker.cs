@@ -4,7 +4,6 @@ using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using PulseWatch.Core.Abstractions;
 using PulseWatch.Core.Assertions;
 using PulseWatch.Core.Entities;
 using PulseWatch.Core.Probes;
@@ -42,9 +41,12 @@ internal sealed class ProbeWorker(
 
         try
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(job.TimeoutSeconds));
+
             using var request = new HttpRequestMessage(new HttpMethod(job.Method), job.Url);
             // using var response ensures disposal on all paths including mid-stream read exceptions
-            using var response = await client.SendAsync(request, ct);
+            using var response = await client.SendAsync(request, timeoutCts.Token);
             sw.Stop();
             statusCode = (int)response.StatusCode;
 
@@ -68,16 +70,17 @@ internal sealed class ProbeWorker(
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             sw.Stop();
-            failureReason = ex.Message;
+            failureReason = ex is OperationCanceledException
+                ? $"Probe timed out after {job.TimeoutSeconds}s"
+                : ex.Message;
             logger.LogWarning("Probe {ProbeId} failed after {Ms}ms: {Reason}",
-                job.ProbeId, sw.ElapsedMilliseconds, ex.Message);
+                job.ProbeId, sw.ElapsedMilliseconds, failureReason);
         }
 
         try
         {
             using var scope = scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PulseDbContext>();
-            var probeRepo = scope.ServiceProvider.GetRequiredService<IProbeRepository>();
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
             var check = new HealthCheck(job.ProbeId, statusCode, sw.ElapsedMilliseconds, isSuccess, failureReason);
@@ -96,11 +99,6 @@ internal sealed class ProbeWorker(
                 })));
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
-
-            // MarkCheckedAsync is outside the transaction by design: accepted at-least-once semantics.
-            // If the process crashes between CommitAsync and here, the probe fires again on the next
-            // scheduler tick and writes a duplicate HealthCheck row. This is benign for a monitoring tool.
-            await probeRepo.MarkCheckedAsync(job.ProbeId, ct);
 
             logger.LogInformation("Probe {ProbeId} {Result} in {Ms}ms",
                 job.ProbeId, isSuccess ? "OK" : "FAIL", sw.ElapsedMilliseconds);
