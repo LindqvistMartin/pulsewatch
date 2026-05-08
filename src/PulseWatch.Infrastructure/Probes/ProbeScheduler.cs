@@ -48,7 +48,15 @@ internal sealed class ProbeScheduler(
                 if (!channel.Writer.TryWrite(job))
                     logger.LogWarning("Channel full, dropping probe job {ProbeId}", probe.Id);
                 else
-                    await repo.MarkCheckedAsync(probe.Id, ct);
+                {
+                    try { await repo.MarkCheckedAsync(probe.Id, ct); }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // Probe was enqueued but LastCheckedAt not updated — it will be re-enqueued
+                        // on the next tick, producing a duplicate HealthCheck row. Benign for monitoring.
+                        logger.LogWarning(ex, "Failed to mark probe {ProbeId} as checked; may fire again next tick", probe.Id);
+                    }
+                }
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
