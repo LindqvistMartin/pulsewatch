@@ -23,5 +23,6 @@ export function useProbeChecks(
     },
     enabled: projectId !== null && probeId !== null,
     initialData: [],
+    initialDataUpdatedAt: 0,
   })
 }

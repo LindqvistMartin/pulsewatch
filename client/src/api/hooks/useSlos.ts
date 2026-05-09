@@ -13,6 +13,7 @@ export function useSlos(projectId: string | null, probeId: string | null) {
         .then(r => r.data),
     enabled: projectId !== null && probeId !== null,
     initialData: [],
+    initialDataUpdatedAt: 0,
   })
 }
 

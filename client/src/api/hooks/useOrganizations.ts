@@ -7,6 +7,7 @@ export function useOrganizations() {
     queryKey: ['orgs'],
     queryFn: () => api.get<Org[]>('/api/v1/organizations').then(r => r.data),
     initialData: [],
+    initialDataUpdatedAt: 0,
   })
 }
 

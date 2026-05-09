@@ -9,6 +9,7 @@ export function useProbes(projectId: string | null) {
       api.get<Probe[]>(`/api/v1/projects/${projectId}/probes`).then(r => r.data),
     enabled: projectId !== null,
     initialData: [],
+    initialDataUpdatedAt: 0,
   })
 }
 

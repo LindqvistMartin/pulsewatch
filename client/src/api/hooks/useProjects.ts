@@ -9,6 +9,7 @@ export function useProjects(orgId: string | null) {
       api.get<Project[]>(`/api/v1/organizations/${orgId}/projects`).then(r => r.data),
     enabled: orgId !== null,
     initialData: [],
+    initialDataUpdatedAt: 0,
   })
 }
 
