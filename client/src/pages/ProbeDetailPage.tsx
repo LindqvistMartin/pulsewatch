@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { StatusBadge } from '@/components/StatusBadge'
+import { StatusBadge, type ProbeStatus } from '@/components/StatusBadge'
 import { ResponseTimeChart } from '@/components/ResponseTimeChart'
 import { SloCard } from '@/components/SloCard'
 import { RecentChecksTable } from '@/components/RecentChecksTable'
@@ -88,6 +88,19 @@ export function ProbeDetailPage() {
 
   const firstSlo = slos[0] ?? null
 
+  // Derived from recent check results — more accurate than probe.isActive alone
+  const probeStatus = useMemo((): ProbeStatus => {
+    if (!probe?.isActive) return 'down'
+    if (checks.length === 0) return 'unknown'
+    const recent = [...checks]
+      .sort((a, b) => new Date(b.checkedAt).getTime() - new Date(a.checkedAt).getTime())
+      .slice(0, 5)
+    const failures = recent.filter(c => !c.isSuccess).length
+    if (failures === recent.length) return 'down'
+    if (failures > 0) return 'degraded'
+    return 'healthy'
+  }, [probe?.isActive, checks])
+
   function handleDelete() {
     if (!probeId || !projectId) return
     deleteProbe.mutate(probeId, {
@@ -118,7 +131,6 @@ export function ProbeDetailPage() {
     )
   }
 
-  const probeStatus = probe.isActive ? 'healthy' as const : 'down' as const
   const lastChecked = probe.lastCheckedAt ?? probe.createdAt
 
   return (

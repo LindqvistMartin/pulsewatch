@@ -99,9 +99,11 @@ export function SloCard({ slo }: SloCardProps) {
               Exhaustion
             </p>
             <p className="font-mono text-xs text-muted-foreground">
-              {m.projectedExhaustionAt
+              {m.projectedExhaustionAt && new Date(m.projectedExhaustionAt) > new Date()
                 ? `in ${formatDistanceToNow(new Date(m.projectedExhaustionAt), { addSuffix: false })}`
-                : 'Budget healthy'}
+                : m.burnRate > 1
+                  ? 'Budget exhausted'
+                  : 'Budget healthy'}
             </p>
           </div>
         </div>
