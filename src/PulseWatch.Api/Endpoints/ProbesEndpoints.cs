@@ -22,10 +22,19 @@ public static class ProbesEndpoints
         return app;
     }
 
-    static async Task<IResult> GetAll(Guid projectId, IProbeRepository repo, CancellationToken ct)
+    static async Task<IResult> GetAll(Guid projectId, IProbeRepository repo, PulseDbContext db, CancellationToken ct)
     {
         var probes = await repo.GetByProjectAsync(projectId, ct);
-        return Results.Ok(probes.Select(ToResponse));
+        if (probes.Count == 0) return Results.Ok(Array.Empty<ProbeResponse>());
+
+        var ids = probes.Select(p => p.Id).ToList();
+        var lastChecks = await db.HealthChecks
+            .Where(c => ids.Contains(c.ProbeId))
+            .GroupBy(c => c.ProbeId)
+            .Select(g => new { ProbeId = g.Key, IsSuccess = g.OrderByDescending(c => c.CheckedAt).Select(c => c.IsSuccess).First() })
+            .ToDictionaryAsync(x => x.ProbeId, x => (bool?)x.IsSuccess, ct);
+
+        return Results.Ok(probes.Select(p => ToResponse(p, lastChecks.GetValueOrDefault(p.Id))));
     }
 
     static async Task<IResult> Create(Guid projectId, CreateProbeRequest req,
@@ -88,6 +97,6 @@ public static class ProbesEndpoints
             c.Id, c.StatusCode, c.ResponseTimeMs, c.IsSuccess, c.FailureReason, c.CheckedAt)));
     }
 
-    static ProbeResponse ToResponse(Probe p) =>
-        new(p.Id, p.ProjectId, p.Name, p.Url, p.Method, p.IntervalSeconds, p.IsActive, p.CreatedAt, p.LastCheckedAt);
+    static ProbeResponse ToResponse(Probe p, bool? lastCheckSuccess = null) =>
+        new(p.Id, p.ProjectId, p.Name, p.Url, p.Method, p.IntervalSeconds, p.IsActive, p.CreatedAt, p.LastCheckedAt, lastCheckSuccess);
 }

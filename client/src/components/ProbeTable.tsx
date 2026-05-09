@@ -159,7 +159,11 @@ export function ProbeTable({ probes, projectId, loading = false, onAddProbe }: P
           </TableHeader>
           <TableBody>
             {probes.map(probe => {
-              const status: ProbeStatus = probe.isActive ? 'healthy' : 'down'
+              const status: ProbeStatus =
+                !probe.isActive ? 'down'
+                : probe.lastCheckSuccess === null ? 'unknown'
+                : probe.lastCheckSuccess ? 'healthy'
+                : 'down'
               const short = truncateUrl(probe.url)
               const needsTooltip = short !== probe.url
 

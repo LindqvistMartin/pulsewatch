@@ -23,6 +23,7 @@ export type Probe = {
   isActive: boolean
   createdAt: string
   lastCheckedAt: string | null
+  lastCheckSuccess: boolean | null
 }
 
 export type HealthCheck = {
