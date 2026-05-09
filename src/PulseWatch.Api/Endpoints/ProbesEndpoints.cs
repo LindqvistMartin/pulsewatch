@@ -89,5 +89,5 @@ public static class ProbesEndpoints
     }
 
     static ProbeResponse ToResponse(Probe p) =>
-        new(p.Id, p.ProjectId, p.Name, p.Url, p.Method, p.IntervalSeconds, p.IsActive, p.CreatedAt);
+        new(p.Id, p.ProjectId, p.Name, p.Url, p.Method, p.IntervalSeconds, p.IsActive, p.CreatedAt, p.LastCheckedAt);
 }
