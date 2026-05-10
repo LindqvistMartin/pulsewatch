@@ -33,7 +33,7 @@ builder.Services.AddHostedService<OutboxRelay>();
 builder.Services.AddMemoryCache();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
-    p.WithOrigins("http://localhost:5173").AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
+    p.WithOrigins("http://localhost:5173", "https://pulsewatch-ui.onrender.com").AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
 
 builder.Services.AddOpenTelemetry()
     .WithTracing(t => t
