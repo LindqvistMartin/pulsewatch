@@ -5,17 +5,18 @@
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev)
+[![Tests](https://img.shields.io/badge/tests-150%20passing-brightgreen.svg)](#run-tests)
 
 🔗 **Live demo:** [pulsewatch.onrender.com](https://pulsewatch.onrender.com) &nbsp;|&nbsp; 📊 **Status page:** [pulsewatch.onrender.com/p/demo](https://pulsewatch.onrender.com/p/demo)
 
 ---
 
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" alt="PulseWatch dashboard — monitoring stack with mixed statuses" width="900"/>
+  <img src="docs/screenshots/status-page.png" alt="PulseWatch public status page — partial outage detected, 90-day historical bars, active incident" width="900"/>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/probe-detail.png" alt="Probe detail — response time chart p50/p95/p99, SLO 100% availability, error budget healthy" width="900"/>
+  <img src="docs/screenshots/dashboard.png" alt="PulseWatch dashboard — monitoring stack with mixed Healthy/Down statuses" width="900"/>
 </p>
 
 <p align="center">
