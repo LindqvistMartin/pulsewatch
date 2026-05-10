@@ -20,6 +20,10 @@
 </p>
 
 <p align="center">
+  <img src="docs/screenshots/probe-detail.png" alt="Probe detail — response time chart p50/p95/p99, SLO 100% availability, error budget healthy" width="900"/>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/probe-detail-outage.png" alt="Probe detail — outage detected, SLO burn rate 1000×, incident auto-opened" width="900"/>
 </p>
 
