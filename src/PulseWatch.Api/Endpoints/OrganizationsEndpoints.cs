@@ -1,7 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using PulseWatch.Api.Contracts.Requests;
 using PulseWatch.Api.Contracts.Responses;
 using PulseWatch.Core.Abstractions;
 using PulseWatch.Core.Entities;
+using PulseWatch.Infrastructure.Persistence;
 
 namespace PulseWatch.Api.Endpoints;
 
@@ -14,6 +16,7 @@ public static class OrganizationsEndpoints
         group.MapGet("/", GetAll);
         group.MapPost("/", Create);
         group.MapGet("/{id:guid}", GetById);
+        group.MapDelete("/{id:guid}", Delete);
 
         return app;
     }
@@ -42,5 +45,11 @@ public static class OrganizationsEndpoints
         var org = await repo.GetByIdAsync(id, ct);
         if (org is null) return Results.NotFound();
         return Results.Ok(new OrganizationResponse(org.Id, org.Name, org.Slug, org.CreatedAt));
+    }
+
+    static async Task<IResult> Delete(Guid id, PulseDbContext db, CancellationToken ct)
+    {
+        var deleted = await db.Organizations.Where(o => o.Id == id).ExecuteDeleteAsync(ct);
+        return deleted > 0 ? Results.NoContent() : Results.NotFound();
     }
 }
