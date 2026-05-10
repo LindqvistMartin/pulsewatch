@@ -96,3 +96,30 @@ export type CreateSloRequest = {
   windowDays: number
   targetLatencyP95Ms?: number
 }
+
+export type DailyBar = {
+  date: string
+  availabilityPct: number
+  totalChecks: number
+}
+
+export type ProbeSnapshot = {
+  id: string
+  name: string
+  status: 'Healthy' | 'Down' | 'Degraded' | string
+  dailyBars: DailyBar[]
+}
+
+export type ActiveIncident = {
+  id: string
+  openedAt: string
+  reason: string
+}
+
+export type StatusPageSnapshot = {
+  title: string
+  description: string
+  overallStatus: 'Operational' | 'Degraded' | 'Outage' | string
+  probes: ProbeSnapshot[]
+  activeIncidents: ActiveIncident[]
+}

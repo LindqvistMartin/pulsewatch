@@ -4,6 +4,7 @@ import { AddProbeDialogProvider } from '@/components/AddProbeDialog'
 import { CommandPaletteProvider } from '@/components/CommandPalette'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ProbeDetailPage } from '@/pages/ProbeDetailPage'
+import { StatusPagePage } from '@/pages/StatusPagePage'
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
               </AppShell>
             }
           />
+          <Route path="/p/:slug" element={<StatusPagePage />} />
         </Routes>
       </CommandPaletteProvider>
     </AddProbeDialogProvider>
