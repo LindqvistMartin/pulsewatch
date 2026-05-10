@@ -7,7 +7,7 @@
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev)
 [![Tests](https://img.shields.io/badge/tests-150%20passing-brightgreen.svg)](#run-tests)
 
-🔗 **Live demo:** [pulsewatch.onrender.com](https://pulsewatch.onrender.com) &nbsp;|&nbsp; 📊 **Status page:** [pulsewatch.onrender.com/p/demo](https://pulsewatch.onrender.com/p/demo)
+🔗 **Live demo:** [pulsewatch-ui.onrender.com](https://pulsewatch-ui.onrender.com) &nbsp;|&nbsp; 📊 **Status page:** [pulsewatch-ui.onrender.com/p/demo](https://pulsewatch-ui.onrender.com/p/demo)
 
 ---
 
