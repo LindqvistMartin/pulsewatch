@@ -6,6 +6,7 @@
 [![.NET](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev)
 [![Tests](https://img.shields.io/badge/tests-150%20passing-brightgreen.svg)](#run-tests)
+[![Deployed](https://img.shields.io/badge/deployed-render.com-46E3B7.svg)](https://pulsewatch-ui.onrender.com)
 
 🔗 **Live demo:** [pulsewatch-ui.onrender.com](https://pulsewatch-ui.onrender.com) &nbsp;|&nbsp; 📊 **Status page:** [pulsewatch-ui.onrender.com/#/p/demo](https://pulsewatch-ui.onrender.com/#/p/demo)
 
@@ -41,7 +42,7 @@ Better Stack costs $29/month. Datadog costs $300/month. Uptime Kuma is great but
 - **Public status pages** — 90-day historical bars, incident timeline, custom slug (`/p/<slug>`)
 - **YAML config-as-code** — define probes, SLOs, and status pages in `pulsewatch.yaml`; import via API
 - **Real-time dashboard** via SignalR — no polling, no F5
-- **REST API + OpenAPI** — full API surface at `/scalar`
+- **REST API + OpenAPI** — full API surface at `/scalar/v1`
 - **Multi-tenancy** — Organizations → Projects → Probes
 - **Self-instrumented** — OpenTelemetry traces + `/metrics` Prometheus endpoint
 
@@ -179,10 +180,13 @@ Unit tests: < 1 s. Integration tests (Testcontainers): ~30 s.
 
 ## Roadmap
 
+- OIDC authentication (Keycloak)
 - Slack/Discord webhook on SLO breach
 - Distributed probing from multiple regions
 - Synthetic transactions (multi-step, Playwright-style)
+- Data retention policies
 - On-call rotation
+- Playwright E2E test suite for status page and core flows
 
 ## License
 
