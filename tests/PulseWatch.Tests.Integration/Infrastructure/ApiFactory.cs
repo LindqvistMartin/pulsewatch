@@ -84,6 +84,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await db.HealthChecks.ExecuteDeleteAsync();
         await db.ProbeAssertions.ExecuteDeleteAsync();
         await db.Probes.ExecuteDeleteAsync();
+        await db.StatusPages.ExecuteDeleteAsync();
         await db.Projects.ExecuteDeleteAsync();
         await db.Organizations.ExecuteDeleteAsync();
     }
