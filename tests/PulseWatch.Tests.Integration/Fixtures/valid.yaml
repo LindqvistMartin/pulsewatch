@@ -1,0 +1,20 @@
+version: 1
+project:
+  name: Test Services
+  slug: test-services
+probes:
+  - name: API
+    url: https://example.com/health
+    interval: 30s
+  - name: Payment
+    url: https://example.com/payment/health
+    interval: 60s
+slos:
+  - probe: API
+    target_availability: 99.9
+    window: 30d
+status_pages:
+  - slug: test-status
+    title: Test Services Status
+    description: All test services
+    probes: [API, Payment]
