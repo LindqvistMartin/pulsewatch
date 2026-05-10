@@ -24,6 +24,8 @@ export type Probe = {
   createdAt: string
   lastCheckedAt: string | null
   lastCheckSuccess: boolean | null
+  uptimePct30d: number | null
+  p95LatencyMs24h: number | null
 }
 
 export type HealthCheck = {

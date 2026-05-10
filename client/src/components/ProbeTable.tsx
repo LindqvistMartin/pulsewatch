@@ -48,7 +48,7 @@ interface ProbeTableProps {
 function SkeletonRow() {
   return (
     <TableRow className="border-border/50">
-      {[40, 120, 200, 50, 40, 30].map((w, i) => (
+      {[40, 120, 200, 60, 55, 70, 40, 30].map((w, i) => (
         <TableCell key={i}>
           <div
             className="h-3 animate-pulse rounded bg-muted"
@@ -58,6 +58,16 @@ function SkeletonRow() {
       ))}
     </TableRow>
   )
+}
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return '—'
+  const diff = Date.now() - new Date(iso).getTime()
+  const secs = Math.floor(diff / 1000)
+  if (secs < 60) return `${secs}s ago`
+  const mins = Math.floor(secs / 60)
+  if (mins < 60) return `${mins}m ago`
+  return `${Math.floor(mins / 60)}h ago`
 }
 
 function truncateUrl(url: string, max = 50) {
@@ -94,7 +104,9 @@ export function ProbeTable({ probes, projectId, loading = false, onAddProbe }: P
               <TableHead className="w-[100px] text-[10px] uppercase tracking-widest text-muted-foreground/70">Status</TableHead>
               <TableHead className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Name</TableHead>
               <TableHead className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Endpoint</TableHead>
-              <TableHead className="hidden sm:table-cell text-[10px] uppercase tracking-widest text-muted-foreground/70">Interval</TableHead>
+              <TableHead className="hidden lg:table-cell text-[10px] uppercase tracking-widest text-muted-foreground/70">Uptime 30d</TableHead>
+              <TableHead className="hidden lg:table-cell text-[10px] uppercase tracking-widest text-muted-foreground/70">P95 24h</TableHead>
+              <TableHead className="hidden sm:table-cell text-[10px] uppercase tracking-widest text-muted-foreground/70">Last check</TableHead>
               <TableHead className="hidden sm:table-cell text-[10px] uppercase tracking-widest text-muted-foreground/70">Method</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -148,8 +160,14 @@ export function ProbeTable({ probes, projectId, loading = false, onAddProbe }: P
               <TableHead className="text-[10px] uppercase tracking-widest text-muted-foreground/70">
                 Endpoint
               </TableHead>
-              <TableHead className="hidden sm:table-cell w-[80px] text-[10px] uppercase tracking-widest text-muted-foreground/70">
-                Interval
+              <TableHead className="hidden lg:table-cell w-[90px] text-[10px] uppercase tracking-widest text-muted-foreground/70">
+                Uptime 30d
+              </TableHead>
+              <TableHead className="hidden lg:table-cell w-[80px] text-[10px] uppercase tracking-widest text-muted-foreground/70">
+                P95 24h
+              </TableHead>
+              <TableHead className="hidden sm:table-cell w-[90px] text-[10px] uppercase tracking-widest text-muted-foreground/70">
+                Last check
               </TableHead>
               <TableHead className="hidden sm:table-cell w-[70px] text-[10px] uppercase tracking-widest text-muted-foreground/70">
                 Method
@@ -205,9 +223,37 @@ export function ProbeTable({ probes, projectId, loading = false, onAddProbe }: P
                     )}
                   </TableCell>
 
+                  <TableCell className="hidden lg:table-cell py-3 tabular-nums">
+                    {probe.uptimePct30d != null ? (
+                      <span className={cn(
+                        'font-mono text-xs font-medium',
+                        probe.uptimePct30d >= 99.9 ? 'text-emerald-500' :
+                        probe.uptimePct30d >= 99 ? 'text-amber-400' : 'text-red-500'
+                      )}>
+                        {probe.uptimePct30d.toFixed(2)}%
+                      </span>
+                    ) : (
+                      <span className="font-mono text-xs text-muted-foreground/40">—</span>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="hidden lg:table-cell py-3 tabular-nums">
+                    {probe.p95LatencyMs24h != null ? (
+                      <span className={cn(
+                        'font-mono text-xs',
+                        probe.p95LatencyMs24h < 200 ? 'text-emerald-500/90' :
+                        probe.p95LatencyMs24h < 800 ? 'text-amber-400' : 'text-red-500'
+                      )}>
+                        {probe.p95LatencyMs24h}ms
+                      </span>
+                    ) : (
+                      <span className="font-mono text-xs text-muted-foreground/40">—</span>
+                    )}
+                  </TableCell>
+
                   <TableCell className="hidden sm:table-cell py-3">
                     <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                      {probe.intervalSeconds}s
+                      {relativeTime(probe.lastCheckedAt)}
                     </span>
                   </TableCell>
 

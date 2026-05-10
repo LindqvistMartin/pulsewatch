@@ -36,14 +36,30 @@ export function DashboardPage() {
 
   const isInitialLoad = isFetching && probes.length === 0
 
+  const healthyCount = probes.filter(p => p.lastCheckSuccess === true).length
+  const downCount = probes.filter(p => p.lastCheckSuccess === false).length
+
   return (
     <div className="space-y-6">
       {/* Page header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">
-            Probes
-          </h1>
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">
+              Probes
+            </h1>
+            {probes.length > 0 && (
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {probes.length} total
+                {healthyCount > 0 && (
+                  <span className="ml-2 text-emerald-500">{healthyCount} healthy</span>
+                )}
+                {downCount > 0 && (
+                  <span className="ml-2 text-red-500">{downCount} down</span>
+                )}
+              </span>
+            )}
+          </div>
           {(selectedOrg || selectedProject) && (
             <p className="mt-0.5 font-mono text-xs text-muted-foreground">
               {selectedOrg?.name}

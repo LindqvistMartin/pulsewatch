@@ -28,13 +28,42 @@ public static class ProbesEndpoints
         if (probes.Count == 0) return Results.Ok(Array.Empty<ProbeResponse>());
 
         var ids = probes.Select(p => p.Id).ToList();
+        var idsArray = ids.ToArray();
+        var from30d = DateTime.UtcNow.AddDays(-30);
+        var from24h = DateTime.UtcNow.AddHours(-24);
+
         var lastChecks = await db.HealthChecks
             .Where(c => ids.Contains(c.ProbeId))
             .GroupBy(c => c.ProbeId)
             .Select(g => new { ProbeId = g.Key, IsSuccess = g.OrderByDescending(c => c.CheckedAt).Select(c => c.IsSuccess).First() })
             .ToDictionaryAsync(x => x.ProbeId, x => (bool?)x.IsSuccess, ct);
 
-        return Results.Ok(probes.Select(p => ToResponse(p, lastChecks.GetValueOrDefault(p.Id))));
+        // 30-day uptime % from materialized daily rollup
+        var uptimeRows = await db.Database.SqlQuery<UptimeRow>($"""
+            SELECT probe_id AS "ProbeId",
+                   CASE WHEN SUM(total) = 0 THEN NULL
+                        ELSE ROUND((SUM(success)::numeric / SUM(total)) * 100, 3)
+                   END AS "UptimePct"
+            FROM health_check_1d
+            WHERE probe_id = ANY({idsArray}) AND bucket >= {from30d}
+            GROUP BY probe_id
+            """).ToListAsync(ct);
+        var uptime30d = uptimeRows.ToDictionary(x => x.ProbeId, x => x.UptimePct);
+
+        // P95 latency (max p95 bucket over last 24h) from materialized hourly rollup
+        var p95Rows = await db.Database.SqlQuery<P95Row>($"""
+            SELECT probe_id AS "ProbeId", MAX(p95_ms) AS "P95Ms"
+            FROM health_check_1h
+            WHERE probe_id = ANY({idsArray}) AND bucket >= {from24h}
+            GROUP BY probe_id
+            """).ToListAsync(ct);
+        var p95map = p95Rows.ToDictionary(x => x.ProbeId, x => x.P95Ms);
+
+        return Results.Ok(probes.Select(p => ToResponse(
+            p,
+            lastChecks.GetValueOrDefault(p.Id),
+            uptime30d.GetValueOrDefault(p.Id),
+            p95map.GetValueOrDefault(p.Id))));
     }
 
     static async Task<IResult> Create(Guid projectId, CreateProbeRequest req,
@@ -97,6 +126,9 @@ public static class ProbesEndpoints
             c.Id, c.StatusCode, c.ResponseTimeMs, c.IsSuccess, c.FailureReason, c.CheckedAt)));
     }
 
-    static ProbeResponse ToResponse(Probe p, bool? lastCheckSuccess = null) =>
-        new(p.Id, p.ProjectId, p.Name, p.Url, p.Method, p.IntervalSeconds, p.IsActive, p.CreatedAt, p.LastCheckedAt, lastCheckSuccess);
+    static ProbeResponse ToResponse(Probe p, bool? lastCheckSuccess = null, double? uptimePct30d = null, long? p95Ms24h = null) =>
+        new(p.Id, p.ProjectId, p.Name, p.Url, p.Method, p.IntervalSeconds, p.IsActive, p.CreatedAt, p.LastCheckedAt, lastCheckSuccess, uptimePct30d, p95Ms24h);
 }
+
+internal sealed record UptimeRow(Guid ProbeId, double? UptimePct);
+internal sealed record P95Row(Guid ProbeId, long? P95Ms);
