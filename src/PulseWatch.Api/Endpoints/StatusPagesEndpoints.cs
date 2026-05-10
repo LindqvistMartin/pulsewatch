@@ -107,8 +107,9 @@ public static class StatusPagesEndpoints
             return new ProbeSnapshot(pid, probes.GetValueOrDefault(pid, "Unknown"), status, dailyBars);
         }).ToList();
 
-        var overallStatus = probeSnapshots.All(p => p.Status == "Healthy") ? "Operational"
-            : probeSnapshots.Any(p => p.Status == "Down") ? "Outage"
+        var downCount = probeSnapshots.Count(p => p.Status == "Down");
+        var overallStatus = downCount == 0 ? "Operational"
+            : downCount == probeSnapshots.Count ? "Outage"
             : "Degraded";
 
         var snapshot = new StatusPageSnapshot(
