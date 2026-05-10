@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PulseWatch.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using PulseWatch.Infrastructure.Persistence;
 namespace PulseWatch.Infrastructure.Migrations
 {
     [DbContext(typeof(PulseDbContext))]
-    partial class PulseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260510021854_StatusPage")]
+    partial class StatusPage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

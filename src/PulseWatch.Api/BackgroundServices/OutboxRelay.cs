@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using PulseWatch.Api.Hubs;
 using PulseWatch.Infrastructure.Persistence;
 
@@ -9,6 +10,7 @@ namespace PulseWatch.Api.BackgroundServices;
 internal sealed class OutboxRelay(
     IServiceScopeFactory scopeFactory,
     IHubContext<PulseHub> hub,
+    IMemoryCache cache,
     ILogger<OutboxRelay> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -71,6 +73,17 @@ internal sealed class OutboxRelay(
                     {
                         await hub.Clients.Group($"proj:{projectId}")
                             .SendAsync("HealthCheckRecorded", msg.Payload, ct);
+                    }
+
+                    // Invalidate status page cache for any status pages that include this probe
+                    if (doc.RootElement.TryGetProperty("ProbeId", out var probeProp)
+                        && probeProp.TryGetGuid(out var probeId))
+                    {
+                        var slugs = await db.StatusPages
+                            .Select(sp => new { sp.Slug, sp.ProbeIds })
+                            .ToListAsync(ct);
+                        foreach (var sp in slugs.Where(sp => sp.ProbeIds.Contains(probeId)))
+                            cache.Remove($"status-page:{sp.Slug}");
                     }
                 }
                 else

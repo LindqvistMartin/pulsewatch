@@ -73,6 +73,8 @@ app.MapProjectsEndpoints();
 app.MapProbesEndpoints();
 app.MapSlosEndpoints();
 app.MapIncidentsEndpoints();
+app.MapStatusPagesEndpoints();
+app.MapYamlImportEndpoints();
 app.MapHub<PulseHub>("/hubs/pulse");
 
 app.Run();
