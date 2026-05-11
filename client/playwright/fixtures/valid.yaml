@@ -1,0 +1,14 @@
+version: 1
+project:
+  name: E2E Test Services
+  slug: e2e-test-services
+probes:
+  - name: E2E API
+    url: https://httpbin.org/status/200
+    interval: 30s
+    assertions:
+      - status: 200
+status_pages:
+  - slug: e2e-status
+    title: E2E Status
+    probes: [E2E API]
