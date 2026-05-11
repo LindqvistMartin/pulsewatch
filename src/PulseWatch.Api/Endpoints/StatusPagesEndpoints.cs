@@ -112,12 +112,19 @@ public static class StatusPagesEndpoints
             : downCount == probeSnapshots.Count ? "Outage"
             : "Degraded";
 
+        // Only surface incidents for probes that are currently Down.
+        // A healthy probe may have an open SLO-breach incident (still within the
+        // rolling window) but showing it as "active" on the public page is confusing.
+        var downProbeIds = probeSnapshots.Where(p => p.Status == "Down").Select(p => p.Id).ToHashSet();
+
         var snapshot = new StatusPageSnapshot(
             page.Title,
             page.Description,
             overallStatus,
             probeSnapshots,
-            incidents.Select(i => new ActiveIncidentResponse(i.Id, i.OpenedAt, i.Reason)).ToList());
+            incidents
+                .Where(i => downProbeIds.Contains(i.ProbeId))
+                .Select(i => new ActiveIncidentResponse(i.Id, i.OpenedAt, i.Reason)).ToList());
 
         cache.Set(cacheKey, snapshot, TimeSpan.FromSeconds(30));
         return Results.Ok(snapshot);
