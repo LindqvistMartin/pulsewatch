@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useProbeChecks } from '@/api/hooks/useHealthChecks'
 import { cn } from '@/lib/utils'
-import type { HealthCheck } from '@/api/types'
+import { bucketChecks } from '@/lib/chartUtils'
 
 type ChartWindow = '1h' | '24h' | '7d' | '30d'
 
@@ -36,35 +36,6 @@ const X_FORMAT: Record<ChartWindow, (ts: number) => string> = {
   '30d': ts => format(new Date(ts), 'MMM d'),
 }
 
-function pct(values: number[], p: number): number {
-  const sorted = [...values].sort((a, b) => a - b)
-  const idx = Math.ceil((p / 100) * sorted.length) - 1
-  return sorted[Math.max(0, idx)] ?? 0
-}
-
-interface BucketPoint {
-  ts: number
-  p50: number
-  p95: number
-  p99: number
-}
-
-function bucket(checks: HealthCheck[], from: Date, bucketMs: number): BucketPoint[] {
-  const map = new Map<number, number[]>()
-  const origin = from.getTime()
-  for (const c of checks) {
-    if (!c.isSuccess) continue
-    const t = new Date(c.checkedAt).getTime()
-    const key = Math.floor((t - origin) / bucketMs) * bucketMs + origin
-    const arr = map.get(key) ?? []
-    arr.push(c.responseTimeMs)
-    map.set(key, arr)
-  }
-  return Array.from(map.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([ts, vals]) => ({ ts, p50: pct(vals, 50), p95: pct(vals, 95), p99: pct(vals, 99) }))
-}
-
 const LINES = [
   { key: 'p50', stroke: 'hsl(var(--muted-foreground))', opacity: 0.6 },
   { key: 'p95', stroke: '#3b82f6', opacity: 1 },
@@ -82,7 +53,7 @@ export function ResponseTimeChart({ probeId, projectId }: ResponseTimeChartProps
   const { data: checks } = useProbeChecks(projectId, probeId, DURATIONS_MS[win])
   const points = useMemo(() => {
     const from = new Date(Date.now() - DURATIONS_MS[win])
-    return bucket(checks, from, BUCKET_MS[win])
+    return bucketChecks(checks, from, BUCKET_MS[win])
   }, [checks, win])
 
   return (
