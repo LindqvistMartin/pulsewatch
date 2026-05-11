@@ -5,7 +5,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev)
-[![Tests](https://img.shields.io/badge/tests-150%20passing-brightgreen.svg)](#run-tests)
+[![CI](https://github.com/LindqvistMartin/pulsewatch/actions/workflows/ci.yml/badge.svg)](https://github.com/LindqvistMartin/pulsewatch/actions)
 [![Deployed](https://img.shields.io/badge/deployed-render.com-46E3B7.svg)](https://pulsewatch-ui.onrender.com)
 
 🔗 **Live demo:** [pulsewatch-ui.onrender.com](https://pulsewatch-ui.onrender.com) &nbsp;|&nbsp; 📊 **Status page:** [pulsewatch-ui.onrender.com/#/p/demo](https://pulsewatch-ui.onrender.com/#/p/demo)
@@ -164,7 +164,7 @@ Architecture Decision Records:
 **Backend** — .NET 10, ASP.NET Core Minimal API, EF Core 9, SignalR, PostgreSQL, Serilog  
 **Frontend** — React 18, TypeScript, Vite, TanStack Query, shadcn/ui, Tailwind, recharts  
 **Observability** — OpenTelemetry (traces + metrics), Prometheus `/metrics`, Scalar OpenAPI UI  
-**Tests** — xunit, FluentAssertions, Testcontainers (PostgreSQL), WireMock.Net
+**Tests** — xunit, FluentAssertions, Testcontainers (PostgreSQL), WireMock.Net, Playwright
 
 <p align="center">
   <img src="docs/screenshots/api-docs.png" alt="Scalar API documentation — Organizations, Projects, Probes, SLOs, Incidents, Status Pages" width="900"/>
@@ -178,6 +178,14 @@ dotnet test
 
 Unit tests: < 1 s. Integration tests (Testcontainers): ~30 s.
 
+```bash
+# Frontend smoke tests (Vite dev server starts automatically)
+cd client && npm run test:smoke
+
+# Full E2E including backend flows (requires running backend)
+cd client && BACKEND_AVAILABLE=true VITE_API_URL=http://localhost:5035 npm test
+```
+
 ## Roadmap
 
 - OIDC authentication (Keycloak)
@@ -186,7 +194,6 @@ Unit tests: < 1 s. Integration tests (Testcontainers): ~30 s.
 - Synthetic transactions (multi-step, Playwright-style)
 - Data retention policies
 - On-call rotation
-- Playwright E2E test suite for status page and core flows
 
 ## License
 
