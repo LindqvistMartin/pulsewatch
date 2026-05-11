@@ -6,6 +6,7 @@
 [![.NET](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev)
 [![CI](https://github.com/LindqvistMartin/pulsewatch/actions/workflows/ci.yml/badge.svg)](https://github.com/LindqvistMartin/pulsewatch/actions)
+[![Tests](https://img.shields.io/badge/tests-155%20passing-brightgreen.svg)](#run-tests)
 [![Deployed](https://img.shields.io/badge/deployed-render.com-46E3B7.svg)](https://pulsewatch-ui.onrender.com)
 
 🔗 **Live demo:** [pulsewatch-ui.onrender.com](https://pulsewatch-ui.onrender.com) &nbsp;|&nbsp; 📊 **Status page:** [pulsewatch-ui.onrender.com/#/p/demo](https://pulsewatch-ui.onrender.com/#/p/demo)
