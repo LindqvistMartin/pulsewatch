@@ -4,7 +4,7 @@
 
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com)
-[![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev)
 [![CI](https://github.com/LindqvistMartin/pulsewatch/actions/workflows/ci.yml/badge.svg)](https://github.com/LindqvistMartin/pulsewatch/actions)
 [![Tests](https://img.shields.io/badge/tests-155%20passing-brightgreen.svg)](#run-tests)
 [![Deployed](https://img.shields.io/badge/deployed-render.com-46E3B7.svg)](https://pulsewatch-ui.onrender.com)
@@ -163,7 +163,7 @@ Architecture Decision Records:
 ## Stack
 
 **Backend** — .NET 10, ASP.NET Core Minimal API, EF Core 9, SignalR, PostgreSQL, Serilog  
-**Frontend** — React 18, TypeScript, Vite, TanStack Query, shadcn/ui, Tailwind, recharts  
+**Frontend** — React 19, TypeScript, Vite, TanStack Query, shadcn/ui, Tailwind, recharts  
 **Observability** — OpenTelemetry (traces + metrics), Prometheus `/metrics`, Scalar OpenAPI UI  
 **Tests** — xunit, FluentAssertions, Testcontainers (PostgreSQL), WireMock.Net, Playwright
 
