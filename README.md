@@ -1,6 +1,6 @@
 # PulseWatch
 
-**Self-hosted reliability dashboard. Probes, SLOs, public status pages — without the SaaS bill.**
+**Know your uptime before your users do. Self-hosted probes, SLO error budgets, and public status pages.**
 
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com)
@@ -11,7 +11,13 @@
 
 🔗 **Live demo:** [pulsewatch-ui.onrender.com](https://pulsewatch-ui.onrender.com) &nbsp;|&nbsp; 📊 **Status page:** [pulsewatch-ui.onrender.com/#/p/demo](https://pulsewatch-ui.onrender.com/#/p/demo)
 
+> A small self-hosted SRE stack, built to chain: **pulsewatch** to detect, **sluice** to route webhooks, **flare** to run the incident.
+
 ---
+
+<p align="center">
+  <img src="docs/screenshots/probe-detail-outage.png" alt="Probe detail — outage detected, SLO burn rate 1000×, incident auto-opened" width="900"/>
+</p>
 
 <p align="center">
   <img src="docs/screenshots/status-page.png" alt="PulseWatch public status page — partial outage detected, 90-day historical bars, active incident" width="900"/>
@@ -23,10 +29,6 @@
 
 <p align="center">
   <img src="docs/screenshots/probe-detail.png" alt="Probe detail — response time chart p50/p95/p99, SLO 100% availability, error budget healthy" width="900"/>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/probe-detail-outage.png" alt="Probe detail — outage detected, SLO burn rate 1000×, incident auto-opened" width="900"/>
 </p>
 
 ---
